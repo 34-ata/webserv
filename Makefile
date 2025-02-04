@@ -8,8 +8,9 @@ all: $(NAME)
 $(NAME): $(OBJS) | $B
 	$(CXX) $(CXXFLAGS) $< -o $B/$(NAME)
 
-$O/%.o: $S/%.cpp | $O
+$O/%.o: $S/%.cpp | $O $D
 	$(CXX) $(CXXFLAGS) $(CPPFLAGS) -c $< -o $@
+	mv $O/$(notdir $*).d $D/
 
 $B:
 	mkdir -p $B
@@ -17,11 +18,16 @@ $B:
 $O:
 	mkdir -p $O
 
+$D:
+	mkdir -p $D
+
+-include $(DEPS)
+
 run: $(NAME)
 	./$B/$(NAME) $(TEST_FILE)
 
 clean:
-	$(RM) $O
+	$(RM) $O $D
 
 fclean: clean
 	$(RM) $B

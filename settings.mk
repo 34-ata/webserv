@@ -1,6 +1,6 @@
 CXX = c++
 
-CXXFLAGS += -Wall -Werror -Wextra -std=c++98
+CXXFLAGS += -Wall -Werror -Wextra -std=c++98 -MMD -MP
 
 CPPFLAGS += -I./includes
 
@@ -16,10 +16,14 @@ O = ./obj
 
 B = ./bin
 
+D = ./dep
+
 SRCS = $S/main.cpp \
 	   $S/Socket.cpp 
 
 OBJS = $(SRCS:$S/%.cpp=$O/%.o)
+
+DEPS = $(SRCS:$S/%.cpp=$D/%.d)
 
 RM = rm -rf
 
