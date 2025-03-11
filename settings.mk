@@ -30,3 +30,5 @@ RM = rm -rf
 AUTHOR = buozcan
 
 AUTHOR2 = faata
+
+SHELL = /bin/bash
