@@ -33,4 +33,5 @@
 
 webserv.pdf
 compile_flags.txt
-*/webserv
+build.log
+bin/
