@@ -9,7 +9,7 @@ $(NAME): $(OBJS) | $B
 	$(CXX) $(CXXFLAGS) $< -o $B/$(NAME)
 
 $O/%.o: $S/%.cpp | $O $D
-	$(CXX) $(CXXFLAGS) $(CPPFLAGS) -c $< -o $@
+	$(CXX) $(CXXFLAGS) $(CPPFLAGS) -c $< -o $@ #&> build.log
 	mv $O/$(notdir $*).d $D/
 
 $B:
