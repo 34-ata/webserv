@@ -18,8 +18,10 @@ B = ./bin
 
 D = ./dep
 
-SRCS = $S/main.cpp \
-	   $S/Socket.cpp 
+SRCS = $(addprefix $S/, \
+	   main.cpp \
+	   Socket.cpp \
+	   )
 
 OBJS = $(SRCS:$S/%.cpp=$O/%.o)
 
