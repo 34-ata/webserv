@@ -8,7 +8,7 @@ LDFLAGS +=
 
 LDLIBS +=
 
-NAME = webserv
+NAME = $B/webserv
 
 S = ./src
 
@@ -21,6 +21,8 @@ D = ./dep
 SRCS = $(addprefix $S/, \
 	   main.cpp \
 	   Socket.cpp \
+	   Server.cpp \
+	   WebServer.cpp\
 	   )
 
 OBJS = $(SRCS:$S/%.cpp=$O/%.o)

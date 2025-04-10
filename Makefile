@@ -6,7 +6,7 @@ TEST_FILE = <test_file>
 all: $(NAME)
 
 $(NAME): $(OBJS) | $B
-	$(CXX) $(CXXFLAGS) $< -o $B/$(NAME)
+	$(CXX) $(CXXFLAGS) $(OBJS) -o $(NAME)
 
 $O/%.o: $S/%.cpp | $O $D
 	$(CXX) $(CXXFLAGS) $(CPPFLAGS) -c $< -o $@ #&> build.log
