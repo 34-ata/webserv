@@ -1,7 +1,7 @@
 include colors.mk
 include settings.mk
 
-TEST_FILE = <test_file>
+TEST_FILE = config
 
 all: $(NAME)
 
@@ -24,7 +24,7 @@ $D:
 -include $(DEPS)
 
 run: $(NAME)
-	./$B/$(NAME) $(TEST_FILE)
+	$(NAME) $(TEST_FILE)
 
 clean:
 	$(RM) $O $D

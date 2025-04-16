@@ -2,6 +2,7 @@
 #define SOCKET_HPP
 
 #include <string>
+
 class Socket
 {
   public:

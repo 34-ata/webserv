@@ -1,4 +1,7 @@
-#ifndef DEBUG
+#ifndef REQUEST_HPP
+#define REQUEST_HPP
+
+#include <string>
 
 class Request
 {
@@ -9,10 +12,11 @@ class Request
 	~Request();
 
   private:
+	std::string data;
 };
 
 Request::Request() {}
 
 Request::~Request() {}
 
-#endif // !DEBUG
+#endif // !REQUEST_HPP

@@ -1,7 +1,7 @@
 #ifndef SERVER_HPP
 #define SERVER_HPP
 
-#include <limits>
+#include "Tokenizer.hpp"
 #include <map>
 #include <string>
 #include <vector>
@@ -33,18 +33,18 @@ class Server
 
   public:
 	Server();
-	Server(const std::string& conf);
+	Server(Tokenizer& tokenizer);
 	Server(const Server& other);
 	Server& operator=(const Server& other);
 	~Server();
 
   private:
-	std::map<int, std::string> errorPages;
-	std::vector<Location> locations;
-	const std::string host;
-	const std::string serverName;
-	const int port;
-	const int clientMaxBodySize;
+	std::map<int, std::string> m_errorPages;
+	std::vector<Location> m_locations;
+	std::string m_host;
+	std::string m_serverName;
+	int m_port;
+	int m_clientMaxBodySize;
 };
 
 #endif // !SERVER_HPP

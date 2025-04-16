@@ -1,3 +1,4 @@
+#include "Tokenizer.hpp"
 #include "WebServer.hpp"
 #include <arpa/inet.h>
 #include <cstring>
@@ -7,9 +8,13 @@
 
 #define IP "127.0.0.1"
 
-int main(void)
+int main(int argc, char** argv)
 {
 	struct sockaddr_in int_sock;
+
+	if (argc != 2)
+		std::cerr << "Usage: ./webserv <config file>" << std::endl;
+
 	memset(&int_sock, 0, sizeof(struct sockaddr_in));
 	int_sock.sin_family = AF_INET;
 	int_sock.sin_port	= htons(6666);
@@ -17,6 +22,13 @@ int main(void)
 
 	std::cout << "Hello, World!" << std::endl;
 	WebServer ws;
-	ws.Init("./config");
+	try
+	{
+		ws.Init(argv[1]);
+	}
+	catch (const Tokenizer::SyntaxException& e)
+	{
+		std::cerr << e.what() << std::endl;
+	}
 	return (0);
 }

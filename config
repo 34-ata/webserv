@@ -1,0 +1,67 @@
+server {
+    host 127.0.0.1;
+    port 8080;
+    server_name localhost www.example.com;
+
+    error_page 404 /errors/404.html;
+    error_page 500 /errors/500.html;
+
+    client_max_body_size 1000000;
+
+    location / {
+        root /var/www/html;
+        index index.html;
+        autoindex off;
+        methods GET POST;
+    }
+
+    location /upload {
+        root /var/www/uploads;
+        methods POST;
+        upload_store /var/www/uploads;
+    }
+
+    location /old-page {
+        return 301 http://www.example.com/new-page;
+    }
+
+    location /cgi-bin {
+        root /var/www/cgi-bin;
+        cgi_extension .php;
+        methods GET POST;
+        cgi_path /usr/bin/php-cgi;
+    }
+
+    location /files {
+        root /var/www/files;
+        autoindex on;
+        index index.html;
+        methods GET;
+    }
+}
+
+server {
+    host 127.0.0.1;
+    port 8080;
+    server_name api.example.com;
+
+    location / {
+        root /var/www/api;
+        index index.py;
+        methods GET POST;
+        cgi_extension .py;
+        cgi_path /usr/bin/python3;
+    }
+}
+
+server {
+    host 0.0.0.0;
+    port 9090;
+
+    location / {
+        root /var/www/alternate;
+        index index.html;
+        autoindex off;
+        methods GET;
+    }
+}

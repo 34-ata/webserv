@@ -3,6 +3,7 @@
 #include "Server.hpp"
 #include <string>
 #include <vector>
+#include <fstream>
 
 class WebServer
 {
@@ -13,13 +14,13 @@ class WebServer
 	~WebServer();
 
   public:
-	bool Init(const std::string& config);
+	bool Init(const std::string& configFile);
 
   private:
-	void ParseServers(const std::string& fileContent);
+	void Parse(std::ifstream& fileIn);
 
   private:
-	std::vector<Server> servers;
+	std::vector<Server> m_servers;
 };
 
 #endif // !WEBSERVER_HPP

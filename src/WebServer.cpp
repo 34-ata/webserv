@@ -1,6 +1,7 @@
 #include "WebServer.hpp"
+#include "Server.hpp"
+#include "Tokenizer.hpp"
 #include <fstream>
-#include <iostream>
 #include <string>
 
 WebServer::WebServer() {}
@@ -15,37 +16,31 @@ WebServer& WebServer::operator=(const WebServer& other)
 	return *this;
 }
 
-bool WebServer::Init(const std::string& config)
+bool WebServer::Init(const std::string& configFile)
 {
-	std::ifstream confStream;
-	std::string buffer;
-	std::string fileContent;
+	std::ifstream fileIn;
 
-	confStream.open(config.c_str());
-	if (!confStream.is_open())
+	fileIn.open(configFile.c_str());
+	if (!fileIn.is_open())
 		return false;
 
-	while (!confStream.eof())
-	{
-		std::getline(confStream, buffer);
-		fileContent += buffer;
-		fileContent += "\n";
-	}
+	Parse(fileIn);
 
-	ParseServers(fileContent);
-
-	std::cout << fileContent << std::endl;
 	return true;
 }
 
-void WebServer::ParseServers(const std::string& fileContent) {
+void WebServer::Parse(std::ifstream& fileIn)
+{
+	Tokenizer tokenizer(fileIn);
+	Server temp;
+	Token currToken;
 
-	std::string tempContent(fileContent);
-	std::string::iterator startPos = tempContent.begin();
-
-	for (; startPos != tempContent.end(); startPos++)
-		if (std::string(" \t\n\r\v").find(*startPos) == std::string::npos)
-			break;
-
-	
+	currToken = tokenizer.Next();
+	while (currToken.type != Token::TOKEN_EOF)
+	{
+		currToken = tokenizer.Next();
+		if (currToken.type == Token::TOKEN_SEMICOLON)
+			throw Tokenizer::SyntaxException(tokenizer);
+	}
 }
+
