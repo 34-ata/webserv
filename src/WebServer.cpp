@@ -36,11 +36,11 @@ void WebServer::Parse(std::ifstream& fileIn)
 	Token currToken;
 
 	currToken = tokenizer.Next();
-	while (currToken.type != Token::TOKEN_EOF)
+	while (currToken.type != Token::END)
 	{
 		currToken = tokenizer.Next();
-		if (currToken.type == Token::TOKEN_SEMICOLON)
-			throw Tokenizer::SyntaxException(tokenizer);
+		if (currToken.type == Token::SEMICOLON)
+			throw Tokenizer::SyntaxException(tokenizer, "Test Error");
 	}
 }
 

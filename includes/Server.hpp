@@ -1,7 +1,6 @@
 #ifndef SERVER_HPP
 #define SERVER_HPP
 
-#include "Tokenizer.hpp"
 #include <map>
 #include <string>
 #include <vector>
@@ -33,10 +32,14 @@ class Server
 
   public:
 	Server();
-	Server(Tokenizer& tokenizer);
 	Server(const Server& other);
 	Server& operator=(const Server& other);
 	~Server();
+
+  public:
+	// It returns true when starting failed.
+	bool Start();
+	void Stop();
 
   private:
 	std::map<int, std::string> m_errorPages;
@@ -45,6 +48,7 @@ class Server
 	std::string m_serverName;
 	int m_port;
 	int m_clientMaxBodySize;
+	bool m_isRunning;
 };
 
 #endif // !SERVER_HPP

@@ -9,7 +9,7 @@ $(NAME): $(OBJS) | $B
 	$(CXX) $(CXXFLAGS) $(OBJS) -o $(NAME)
 
 $O/%.o: $S/%.cpp | $O $D
-	$(CXX) $(CXXFLAGS) $(CPPFLAGS) -c $< -o $@ #&> build.log
+	$(CXX) $(CXXFLAGS) $(CPPFLAGS) -c $< -o $@
 	mv $O/$(notdir $*).d $D/
 
 $B:
@@ -25,6 +25,9 @@ $D:
 
 run: $(NAME)
 	$(NAME) $(TEST_FILE)
+
+debug: $(NAME)
+	$(DEBUGGER) $(NAME) $(TEST_FILE)
 
 clean:
 	$(RM) $O $D
@@ -54,10 +57,10 @@ help:
 		printf "\t$(BOLD_CYAN)make clean: $(BOLD_WHITE)Removes object files.\n"; \
 		printf "\t$(BOLD_CYAN)make fclean: $(BOLD_WHITE)Removes object files and executable.\n"; \
 		printf "\t$(BOLD_CYAN)make run: $(BOLD_WHITE)Runs the project with $(TEST_FILE) file.\n"; \
-		printf "\t$(BOLD_CYAN)make leak: $(BOLD_WHITE)Runs the project with $(TEST_FILE) file and checks for memory leaks.\n"; \
+		printf "\t$(BOLD_CYAN)make debug: $(BOLD_WHITE)Runs the project with $(TEST_FILE) in debugger $(DEBUGGER).\n"; \
 		printf "\t$(BOLD_CYAN)make credit: $(BOLD_WHITE)Shows the project credits.\n"; \
 		printf "\t$(BOLD_CYAN)make help: $(BOLD_WHITE)Shows this help message.\n"; \
 	}'
 
-.PHONY: all run clean fclean re help credit
+.PHONY: all run clean fclean re help credit debug
 

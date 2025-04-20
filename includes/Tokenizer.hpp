@@ -6,20 +6,38 @@
 #include <cstdio>
 #include <exception>
 #include <istream>
+#include <list>
 #include <string>
 
 struct Token
 {
 	enum Type
 	{
-		TOKEN_LBRACE,
-		TOKEN_RBRACE,
-		TOKEN_SEMICOLON,
-		TOKEN_STRING,
-		TOKEN_EOF
+		LBRACE,
+		RBRACE,
+		SEMICOLON,
+		SERVER,
+		HOST,
+		LOCATION,
+		SERVER_NAME,
+		PORT,
+		ERROR_PAGE,
+		CLIENT_MAX_BODY,
+		ROOT,
+		INDEX,
+		AUTO_INDEX,
+		METHODS,
+		RETURN,
+		UPLOAD_STORE,
+		CGI_EXTENSION,
+		CGI_PATH,
+		VALUE,
+		END
 	};
 	Type type;
 	std::string text;
+	std::size_t row;
+	std::size_t col;
 };
 
 class Tokenizer
@@ -28,7 +46,7 @@ class Tokenizer
 	class SyntaxException : std::exception
 	{
 	  public:
-		SyntaxException(const Tokenizer& tokenizer);
+		SyntaxException(const Tokenizer& tokenizer, const std::string& errorMsg);
 		virtual ~SyntaxException() throw();
 		virtual const char* what() const throw();
 
@@ -42,14 +60,15 @@ class Tokenizer
 
   public:
 	Token Next();
-	void Expect(const Token::Type type);
 	std::size_t GetCol() const;
 	std::size_t GetRow() const;
+	void PrintTokens() const;
 
   private:
 	std::istream& m_input;
-	std::size_t m_col;
+	std::list<Token> m_tokens;
 	std::size_t m_row;
+	std::size_t m_col;
 	char m_char;
 
   private:
@@ -57,6 +76,7 @@ class Tokenizer
 	Tokenizer(const Tokenizer& other);
 
   private:
+	Token::Type StringToType(const std::string& string);
 	void SkipWhiteSpaces();
 	void GetChar();
 };

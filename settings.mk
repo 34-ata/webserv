@@ -32,6 +32,8 @@ DEPS = $(SRCS:$S/%.cpp=$D/%.d)
 
 RM = rm -rf
 
+DEBUGGER = gdb
+
 AUTHOR = buozcan
 
 AUTHOR2 = faata
