@@ -2,6 +2,8 @@
 #include "Server.hpp"
 #include "Tokenizer.hpp"
 #include <fstream>
+#include <iostream>
+#include <list>
 #include <string>
 
 WebServer::WebServer() {}
@@ -24,23 +26,35 @@ bool WebServer::Init(const std::string& configFile)
 	if (!fileIn.is_open())
 		return false;
 
-	Parse(fileIn);
-
+	try
+	{
+		Parse(fileIn);
+	}
+	catch (const Tokenizer::SyntaxException& e)
+	{
+		std::cerr << e.what() << std::endl;
+		fileIn.close();
+		return false;
+	}
+	fileIn.close();
 	return true;
 }
 
 void WebServer::Parse(std::ifstream& fileIn)
 {
 	Tokenizer tokenizer(fileIn);
-	Server temp;
-	Token currToken;
-
-	currToken = tokenizer.Next();
-	while (currToken.type != Token::END)
+	const std::list<Token>& tokens = tokenizer.GetTokens();
+	Server::ServerConfig conf;
+	for (std::list<Token>::const_iterator it = tokens.begin();
+		 it != tokens.end(); it++)
 	{
-		currToken = tokenizer.Next();
-		if (currToken.type == Token::SEMICOLON)
-			throw Tokenizer::SyntaxException(tokenizer, "Test Error");
+		if (it->type == Token::SERVER)
+		{
+			it++;
+			if (it->type != Token::LBRACE)
+				throw Tokenizer::SyntaxException(*it,
+												 "Missing scope after server");
+		}
 	}
+	m_servers.push_back(conf);
 }
-

@@ -1,6 +1,5 @@
 server {
-    host 127.0.0.1;
-    port 8080;
+    listen 8080;
     server_name localhost www.example.com;
 
     error_page 404 /errors/404.html;
@@ -41,8 +40,7 @@ server {
 }
 
 server {
-    host 127.0.0.1;
-    port 8080;
+    listen 8080;
     server_name api.example.com;
 
     location / {
@@ -55,7 +53,7 @@ server {
 }
 
 server {
-    host 0.0.0.0;
+    server_name api.example.com;
     port 9090;
 
     location / {

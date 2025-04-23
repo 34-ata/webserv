@@ -17,10 +17,9 @@ struct Token
 		RBRACE,
 		SEMICOLON,
 		SERVER,
-		HOST,
 		LOCATION,
 		SERVER_NAME,
-		PORT,
+		LISTEN,
 		ERROR_PAGE,
 		CLIENT_MAX_BODY,
 		ROOT,
@@ -46,7 +45,7 @@ class Tokenizer
 	class SyntaxException : std::exception
 	{
 	  public:
-		SyntaxException(const Tokenizer& tokenizer, const std::string& errorMsg);
+		SyntaxException(const Token& token, const std::string& errorMsg);
 		virtual ~SyntaxException() throw();
 		virtual const char* what() const throw();
 
@@ -63,6 +62,7 @@ class Tokenizer
 	std::size_t GetCol() const;
 	std::size_t GetRow() const;
 	void PrintTokens() const;
+	const std::list<Token>& GetTokens() const;
 
   private:
 	std::istream& m_input;
@@ -77,6 +77,7 @@ class Tokenizer
 
   private:
 	Token::Type StringToType(const std::string& string);
+	std::string TypeToString(Token::Type type) const;
 	void SkipWhiteSpaces();
 	void GetChar();
 };

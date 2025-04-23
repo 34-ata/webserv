@@ -31,9 +31,21 @@ class Server
 	};
 
   public:
+	struct ServerConfig
+	{
+		ServerConfig();
+
+		std::map<int, std::string> m_errorPages;
+		std::vector<Location> m_locations;
+		std::string m_serverName;
+		std::string m_listen;
+		int m_clientMaxBodySize;
+		bool m_isRunning;
+	};
+
+  public:
 	Server();
-	Server(const Server& other);
-	Server& operator=(const Server& other);
+	Server(const ServerConfig& config);
 	~Server();
 
   public:
@@ -44,9 +56,8 @@ class Server
   private:
 	std::map<int, std::string> m_errorPages;
 	std::vector<Location> m_locations;
-	std::string m_host;
 	std::string m_serverName;
-	int m_port;
+	std::string m_listen;
 	int m_clientMaxBodySize;
 	bool m_isRunning;
 };

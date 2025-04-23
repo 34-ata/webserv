@@ -1,4 +1,5 @@
 #include "Tokenizer.hpp"
+#include <cctype>
 #include <iostream>
 #include <istream>
 #include <iterator>
@@ -23,11 +24,8 @@ void Tokenizer::PrintTokens() const
 			indent_level++;
 		else if (i->type == Token::RBRACE)
 			indent_level--;
-		else
-		{
-			print_indent(indent_level, 4);
-			std::cout << i->text << '\n';
-		}
+		print_indent(indent_level, 4);
+		std::cout << TypeToString(i->type) << ": " << i->text << '\n';
 	}
 }
 
@@ -36,52 +34,111 @@ Tokenizer::Tokenizer(std::istream& input)
 {
 	Token nextToken;
 
-	if (m_char == EOF)
-		throw Tokenizer::SyntaxException(*this, "Empty File");
-	nextToken = Next();
-	while (nextToken.type != Token::END)
+	if (m_input.eof())
+		throw Tokenizer::SyntaxException(
+			(Token){.type = Token::END, .text = "", .row = m_row, .col = m_col},
+			"Empty File");
+	while (!m_input.eof())
 	{
-		m_tokens.push_back(nextToken);
-		nextToken = Next();
-		PrintTokens();
+		SkipWhiteSpaces();
+
+		if (m_input.eof())
+		{
+			nextToken = ((Token){
+				.type = Token::END, .text = "", .row = m_row, .col = m_col});
+			break;
+		}
+
+		switch (m_char)
+		{
+		case ';':
+			m_tokens.push_back((Token){.type = Token::SEMICOLON,
+									   .text = ";",
+									   .row	 = m_row,
+									   .col	 = m_col});
+			GetChar();
+			break;
+		case '{':
+			m_tokens.push_back((Token){.type = Token::LBRACE,
+									   .text = "{",
+									   .row	 = m_row,
+									   .col	 = m_col});
+			GetChar();
+			break;
+		case '}':
+			m_tokens.push_back((Token){.type = Token::RBRACE,
+									   .text = "}",
+									   .row	 = m_row,
+									   .col	 = m_col});
+			GetChar();
+			break;
+		default:
+			std::string nextText;
+			while (!m_input.eof() && !std::isspace(m_char) && m_char != ';'
+				   && m_char != '{' && m_char != '}')
+			{
+				nextText += m_char;
+				GetChar();
+			}
+			m_tokens.push_back((Token){.type = StringToType(nextText),
+									   .text = nextText,
+									   .row	 = m_row,
+									   .col	 = m_col});
+		}
 	}
 	PrintTokens();
 }
 
 Tokenizer::~Tokenizer() {}
 
-Token Tokenizer::Next()
+std::string Tokenizer::TypeToString(Token::Type type) const
 {
-	SkipWhiteSpaces();
-
-	if (m_input.eof())
-		return ((Token){
-			.type = Token::END, .text = "", .row = m_row, .col = m_col});
-
-	std::string word = "";
-
-	while (!std::isspace(m_char) && m_char != '{' && m_char != '}'
-		   && m_char != ';' && !m_input.eof())
-	{
-		word += m_char;
-		GetChar();
-	}
-
-	return (Token){StringToType(word), word, m_row, m_col};
+	if (type == Token::SERVER)
+		return "Token::SERVER";
+	if (type == Token::LOCATION)
+		return "Token::LOCATION";
+	if (type == Token::SERVER_NAME)
+		return "Token::SERVER_NAME";
+	if (type == Token::LISTEN)
+		return "Token::LISTEN";
+	if (type == Token::ERROR_PAGE)
+		return "Token::ERROR_PAGE";
+	if (type == Token::CLIENT_MAX_BODY)
+		return "Token::CLIENT_MAX_BODY";
+	if (type == Token::ROOT)
+		return "Token::ROOT";
+	if (type == Token::INDEX)
+		return "Token::INDEX";
+	if (type == Token::AUTO_INDEX)
+		return "Token::AUTO_INDEX";
+	if (type == Token::METHODS)
+		return "Token::METHODS";
+	if (type == Token::RETURN)
+		return "Token::RETURN";
+	if (type == Token::UPLOAD_STORE)
+		return "Token::UPLOAD_STORE";
+	if (type == Token::CGI_EXTENSION)
+		return "Token::CGI_EXTENSION";
+	if (type == Token::CGI_PATH)
+		return "Token::CGI_PATH";
+	if (type == Token::SEMICOLON)
+		return "Token::SEMICOLON";
+	if (type == Token::LBRACE)
+		return "Token::LBRACE";
+	if (type == Token::RBRACE)
+		return "Token::RBRACE";
+	return "Token::VALUE";
 }
-
 Token::Type Tokenizer::StringToType(const std::string& string)
 {
 	if (string == "server")
 		return Token::SERVER;
 	if (string == "location")
 		return Token::LOCATION;
-	if (string == "host")
-		return Token::HOST;
 	if (string == "server_name")
 		return Token::SERVER_NAME;
-	if (string == "port")
-		return Token::PORT;
+	if (string == "listen")
+		return Token::LISTEN;
 	if (string == "error_page")
 		return Token::ERROR_PAGE;
 	if (string == "client_max_body_size")
@@ -124,16 +181,18 @@ void Tokenizer::GetChar()
 	m_col++;
 }
 
+const std::list<Token>& Tokenizer::GetTokens() const { return m_tokens; }
+
 std::size_t Tokenizer::GetCol() const { return m_col; }
 
 std::size_t Tokenizer::GetRow() const { return m_row; }
 
-Tokenizer::SyntaxException::SyntaxException(const Tokenizer& tokenizer,
+Tokenizer::SyntaxException::SyntaxException(const Token& token,
 											const std::string& errorMsg)
 {
 	std::stringstream str;
-	str << "Syntax Error: " << errorMsg << " at: Line: " << tokenizer.GetRow()
-		<< " Row: " << tokenizer.GetCol();
+	str << "Syntax Error: " << errorMsg << " at: Line: " << token.row
+		<< " Row: " << token.col;
 	m_errorMsg = str.str();
 }
 

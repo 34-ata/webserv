@@ -1,22 +1,39 @@
 #include "Server.hpp"
+#include <map>
+#include <string>
+#include <vector>
 
-Server::Server() {}
-
-Server::Server(const Server& other) { *this = other; }
-
-Server& Server::operator=(const Server& other)
+Server::Server(const Server::ServerConfig& config)
 {
-	this->m_serverName		  = other.m_serverName;
-	this->m_clientMaxBodySize = other.m_clientMaxBodySize;
-	this->m_errorPages		  = other.m_errorPages;
-	this->m_host			  = other.m_host;
-	this->m_locations		  = other.m_locations;
-	this->m_port			  = other.m_port;
-	return *this;
+	this->m_serverName		  = config.m_serverName;
+	this->m_clientMaxBodySize = config.m_clientMaxBodySize;
+	this->m_errorPages		  = config.m_errorPages;
+	this->m_locations		  = config.m_locations;
+	this->m_listen			  = config.m_listen;
+	this->m_isRunning		  = false;
 }
 
 Server::~Server() {}
 
-bool Server::Start() { return false; }
+Server::ServerConfig::ServerConfig()
+{
+	this->m_serverName		  = "";
+	this->m_clientMaxBodySize = 1;
+	this->m_errorPages		  = std::map<int, std::string>();
+	this->m_locations		  = std::vector<Server::Location>();
+	this->m_listen			  = "80";
+	this->m_isRunning		  = false;
+}
 
-void Server::Stop() {}
+bool Server::Start()
+{
+	// Burada Socketler ve diğer sunucu başlatma kısımları olacak.
+	this->m_isRunning = true;
+	return this->m_isRunning;
+}
+
+void Server::Stop()
+{
+	// Burada Socketler kapatılıp temizlenecek.
+	this->m_isRunning = false;
+}

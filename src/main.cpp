@@ -22,13 +22,7 @@ int main(int argc, char** argv)
 
 	std::cout << "Hello, World!" << std::endl;
 	WebServer ws;
-	try
-	{
-		ws.Init(argv[1]);
-	}
-	catch (const Tokenizer::SyntaxException& e)
-	{
-		std::cerr << e.what() << std::endl;
-	}
+	if (!ws.Init(argv[1]))
+		std::cerr << "Failed to init server." << std::endl;
 	return (0);
 }
