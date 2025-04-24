@@ -1,0 +1,48 @@
+[2025-04-24 08:34:53] [INFO] Request received: GET /deneme.html
+[2025-04-24 08:34:53] [ERROR] Response to fd=4 | 404 Not Found | 3310 bytes
+[2025-04-24 09:24:24] [INFO] Request received: GET /index.html
+[2025-04-24 09:24:24] [INFO] Response to fd=4 |  | 922 bytes
+[2025-04-24 09:24:24] [INFO] Request received: GET /style.css
+[2025-04-24 09:24:24] [INFO] Response to fd=4 |  | 922 bytes
+[2025-04-24 09:24:24] [INFO] Request received: GET /script.js
+[2025-04-24 09:24:24] [INFO] Response to fd=4 |  | 922 bytes
+[2025-04-24 09:24:28] [INFO] Request received: GET /index.html
+[2025-04-24 09:24:28] [INFO] Response to fd=5 |  | 922 bytes
+[2025-04-24 09:24:29] [INFO] Request received: GET /style.css
+[2025-04-24 09:24:29] [INFO] Response to fd=4 |  | 922 bytes
+[2025-04-24 09:24:29] [INFO] Request received: GET /script.js
+[2025-04-24 09:24:29] [INFO] Response to fd=4 |  | 922 bytes
+[2025-04-24 09:24:29] [INFO] Request received: GET /favicon.ico
+[2025-04-24 09:24:29] [INFO] Response to fd=4 |  | 922 bytes
+[2025-04-24 09:24:39] [INFO] Request received: GET /about.html
+[2025-04-24 09:24:39] [INFO] Response to fd=4 |  | 922 bytes
+[2025-04-24 09:24:39] [INFO] Request received: GET /style.css
+[2025-04-24 09:24:39] [INFO] Response to fd=4 |  | 922 bytes
+[2025-04-24 09:24:39] [INFO] Request received: GET /script.js
+[2025-04-24 09:24:39] [INFO] Response to fd=4 |  | 922 bytes
+[2025-04-24 09:24:39] [INFO] Request received: GET /favicon.ico
+[2025-04-24 09:24:39] [INFO] Response to fd=4 |  | 922 bytes
+[2025-04-24 09:24:55] [INFO] Request received: GET /index.html
+[2025-04-24 09:24:55] [INFO] Response to fd=4 |  | 922 bytes
+[2025-04-24 09:24:56] [INFO] Request received: GET /style.css
+[2025-04-24 09:24:56] [INFO] Response to fd=4 |  | 922 bytes
+[2025-04-24 09:24:56] [INFO] Request received: GET /script.js
+[2025-04-24 09:24:56] [INFO] Response to fd=5 |  | 922 bytes
+[2025-04-24 09:24:56] [INFO] Request received: GET /favicon.ico
+[2025-04-24 09:24:56] [INFO] Response to fd=4 |  | 922 bytes
+[2025-04-24 09:27:42] [INFO] Request received: GET /index.html
+[2025-04-24 09:27:42] [INFO] Response to fd=4 |  | 1105 bytes
+[2025-04-24 09:27:42] [INFO] Request received: GET /style.css
+[2025-04-24 09:27:42] [INFO] Response to fd=5 |  | 1105 bytes
+[2025-04-24 09:27:42] [INFO] Request received: GET /script.js
+[2025-04-24 09:27:42] [INFO] Response to fd=4 |  | 1105 bytes
+[2025-04-24 09:27:43] [INFO] Request received: GET /favicon.ico
+[2025-04-24 09:27:43] [INFO] Response to fd=4 |  | 1105 bytes
+[2025-04-24 09:27:44] [INFO] Request received: GET /index.html
+[2025-04-24 09:27:44] [INFO] Response to fd=4 |  | 1105 bytes
+[2025-04-24 09:27:44] [INFO] Request received: GET /style.css
+[2025-04-24 09:27:44] [INFO] Response to fd=4 |  | 1105 bytes
+[2025-04-24 09:27:44] [INFO] Request received: GET /script.js
+[2025-04-24 09:27:44] [INFO] Response to fd=4 |  | 1105 bytes
+[2025-04-24 09:27:44] [INFO] Request received: GET /favicon.ico
+[2025-04-24 09:27:44] [INFO] Response to fd=4 |  | 1105 bytes
