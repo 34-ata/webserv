@@ -3,10 +3,11 @@
 
 #include <string>
 
-enum LogLevel {
-    INFO,
-    ERROR,
-    WARNING
+enum LogLevel
+{
+	INFO,
+	ERROR,
+	WARNING
 };
 
 void log(LogLevel level, const std::string& message);
