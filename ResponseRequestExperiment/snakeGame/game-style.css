@@ -1,0 +1,117 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f4f4f4;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+    flex-direction: column;
+    overflow: hidden; /* To prevent scrollbars */
+}
+
+#gameCanvas {
+    border: 2px solid #000;
+    background-color: black;
+    width: 100vw;  /* Make canvas take full width of the viewport */
+    height: 100vh; /* Make canvas take full height of the viewport */
+    display: block;  /* Remove extra margin around canvas */
+    visibility: hidden; /* Hide canvas until game starts */
+}
+
+#loadingScreen {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background-color: rgba(0, 0, 0, 0.7);
+    padding: 40px;
+    border-radius: 10px;
+    color: white;
+    z-index: 10; /* Ensures the loading screen is above canvas */
+    text-align: center;
+}
+
+#loadingScreen h1 {
+    font-size: 36px;
+    margin-bottom: 20px;
+}
+
+#loadingScreen p {
+    font-size: 20px;
+    margin-bottom: 20px;
+}
+
+#startButton {
+    padding: 15px 30px;
+    font-size: 18px;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+#startButton:hover {
+    background-color: #45a049;
+}
+
+/* Pause screen style */
+#pauseScreen {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    background-color: rgba(0, 0, 0, 0.8);
+    padding: 40px;
+    border-radius: 10px;
+    color: white;
+    z-index: 1000;
+    text-align: center;
+}
+
+#pauseScreen h2 {
+    font-size: 36px;
+    margin-bottom: 20px;
+}
+
+#pauseScreen p {
+    font-size: 20px;
+    margin-bottom: 20px;
+}
+
+#resumeButton {
+    padding: 15px 30px;
+    font-size: 18px;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+#resumeButton:hover {
+    background-color: #45a049;
+}
+
+/* Score style */
+#score {
+    color: white;  /* Make score text white */
+    font-size: 30px;  /* Adjust font size */
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    z-index: 1000; /* Ensure score appears above canvas */
+}
