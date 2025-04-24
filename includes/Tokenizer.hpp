@@ -58,6 +58,10 @@ class Tokenizer
 	~Tokenizer();
 
   public:
+	static Token::Type StringToType(const std::string& string);
+	static std::string TypeToString(Token::Type type);
+
+  public:
 	Token Next();
 	std::size_t GetCol() const;
 	std::size_t GetRow() const;
@@ -76,8 +80,6 @@ class Tokenizer
 	Tokenizer(const Tokenizer& other);
 
   private:
-	Token::Type StringToType(const std::string& string);
-	std::string TypeToString(Token::Type type) const;
 	void SkipWhiteSpaces();
 	void GetChar();
 };

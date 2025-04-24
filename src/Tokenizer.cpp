@@ -83,7 +83,7 @@ Tokenizer::Tokenizer(std::istream& input)
 			m_tokens.push_back((Token){.type = StringToType(nextText),
 									   .text = nextText,
 									   .row	 = m_row,
-									   .col	 = m_col});
+									   .col	 = m_col - nextText.length()});
 		}
 	}
 	PrintTokens();
@@ -91,7 +91,7 @@ Tokenizer::Tokenizer(std::istream& input)
 
 Tokenizer::~Tokenizer() {}
 
-std::string Tokenizer::TypeToString(Token::Type type) const
+std::string Tokenizer::TypeToString(Token::Type type)
 {
 	if (type == Token::SERVER)
 		return "Token::SERVER";
@@ -129,6 +129,7 @@ std::string Tokenizer::TypeToString(Token::Type type) const
 		return "Token::RBRACE";
 	return "Token::VALUE";
 }
+
 Token::Type Tokenizer::StringToType(const std::string& string)
 {
 	if (string == "server")

@@ -40,6 +40,10 @@ bool WebServer::Init(const std::string& configFile)
 	return true;
 }
 
+#define UNEXPECTED(get, expect)                                                \
+	"Unexpected Token" + Tokenizer::TypeToString(get->type) + " expect "       \
+		+ Tokenizer::TypeToString(expect)
+
 void WebServer::Parse(std::ifstream& fileIn)
 {
 	Tokenizer tokenizer(fileIn);
@@ -53,7 +57,29 @@ void WebServer::Parse(std::ifstream& fileIn)
 			it++;
 			if (it->type != Token::LBRACE)
 				throw Tokenizer::SyntaxException(*it,
-												 "Missing scope after server");
+												 UNEXPECTED(it, Token::LBRACE));
+			while (it->type != Token::RBRACE && it != tokens.end())
+			{
+				it++;
+				switch (it->type)
+				{
+				case Token::LISTEN:
+					it++;
+					if (it->type != Token::VALUE)
+					{
+						throw Tokenizer::SyntaxException(
+							*it, UNEXPECTED(it, Token::VALUE));
+					}
+				case Token::SERVER_NAME:
+					it++;
+					if (it->type != Token::VALUE) {
+						throw Tokenizer::SyntaxException(
+							*it, UNEXPECTED(it, Token::VALUE));
+					}
+				default:
+					return;
+				}
+			}
 		}
 	}
 	m_servers.push_back(conf);

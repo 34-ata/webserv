@@ -38,8 +38,8 @@ class Server
 		std::map<int, std::string> m_errorPages;
 		std::vector<Location> m_locations;
 		std::string m_serverName;
-		std::string m_listen;
-		int m_clientMaxBodySize;
+		std::vector<std::string> m_listens;
+		std::string m_clientMaxBodySize;
 		bool m_isRunning;
 	};
 
@@ -57,8 +57,8 @@ class Server
 	std::map<int, std::string> m_errorPages;
 	std::vector<Location> m_locations;
 	std::string m_serverName;
-	std::string m_listen;
-	int m_clientMaxBodySize;
+	std::vector<std::string> m_listens;
+	std::string m_clientMaxBodySize;
 	bool m_isRunning;
 };
 
