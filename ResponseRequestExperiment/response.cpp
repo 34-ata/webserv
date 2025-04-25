@@ -3,6 +3,8 @@
 #include <dirent.h>
 #include <iostream>
 #include <sstream>
+#include <cstdio>
+#include <fstream>
 
 std::map<int, ClientContext> clientContexts;
 
@@ -53,56 +55,67 @@ std::string generateAutoIndex(const std::string& dirPath)
 	return html.str();
 }
 
-void prepareHttpResponse(int client_fd, const Request& req, const Config& conf)
-{
-	std::string response;
-	std::string content;
-	std::string status;
-	std::string fullPath = conf.root + req.path;
+void prepareHttpResponse(int client_fd, const Request& req, const Config& conf) {
+    std::string response;
+    std::string content;
+    std::string status;
+    std::string fullPath = conf.root + req.path;
 
-	if (isDirectory(fullPath))
-	{
-		content = generateAutoIndex(fullPath);
-		status	= "200 OK";
-		response =
-			"HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: "
-			+ static_cast<std::ostringstream&>(std::ostringstream()
-											   << content.length())
-				  .str()
-			+ "\r\n\r\n" + content;
-	}
-	else
-	{
-		content = readFileContent(fullPath);
-		if (content.empty())
-		{
-			std::map<int, std::string>::const_iterator it =
-				conf.error_pages.find(404);
-			if (it != conf.error_pages.end())
-				content = readFileContent(it->second);
-			else
-				content = "<h1>404 - Not Found</h1>";
-
-			status	 = "404 Not Found";
-			response = "HTTP/1.1 404 Not Found\r\nContent-Type: "
-					   "text/html\r\nContent-Length: "
-					   + static_cast<std::ostringstream&>(std::ostringstream()
-														  << content.length())
-							 .str()
-					   + "\r\n\r\n" + content;
-		}
-		else
-		{
-			status					= "200 OK";
-			std::string contentType = getContentType(req.path);
-			response = "HTTP/1.1 200 OK\r\nContent-Type: " + contentType
-					   + "\r\nContent-Length: "
-					   + static_cast<std::ostringstream&>(std::ostringstream()
-														  << content.length())
-							 .str()
-					   + "\r\n\r\n" + content;
+    if (req.method == "GET") {
+        if (isDirectory(fullPath)) {
+            content = generateAutoIndex(fullPath);
+            status = "200 OK";
+        } else {
+            content = readFileContent(fullPath);
+            if (content.empty()) {
+                std::map<int, std::string>::const_iterator it = conf.error_pages.find(404);
+                content = (it != conf.error_pages.end()) ? readFileContent(it->second) : "<h1>404 - Not Found</h1>";
+                status = "404 Not Found";
+            } else {
+                status = "200 OK";
+            }
+        }
+    }
+    else if (req.method == "POST") {
+		std::ofstream uploaded("uploaded.txt");
+		if (!uploaded) {
+			content = "<h1>500 Internal Server Error</h1>";
+			status = "500 Internal Server Error";
+		} else {
+			uploaded << req.body;
+			uploaded.close();
+			content = "<h1>POST Data Saved</h1>";
+			status = "200 OK";
 		}
 	}
+	
+    else if (req.method == "DELETE") {
+        if (remove(fullPath.c_str()) == 0) {
+            content = "<h1>Deleted successfully</h1>";
+            status = "200 OK";
+        } else {
+            content = "<h1>File not found</h1>";
+            status = "404 Not Found";
+        }
+    }
+    else if (req.method == "HEAD") {
+        content = "";
+        status = "200 OK";
+    }
+    else {
+        content = "<h1>501 Not Implemented</h1>";
+        status = "501 Not Implemented";
+    }
 
-	clientContexts[client_fd] = ClientContext(response, status);
+    std::ostringstream ss;
+    ss << "HTTP/1.1 " << status << "\r\n"
+       << "Content-Type: text/html\r\n"
+       << "Content-Length: " << content.size() << "\r\n"
+       << "\r\n";
+
+    if (req.method != "HEAD")
+        ss << content;
+
+    response = ss.str();
+    clientContexts[client_fd] = ClientContext(response, status);
 }
