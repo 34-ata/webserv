@@ -37,6 +37,9 @@ bool WebServer::Init(const std::string& configFile)
 		return false;
 	}
 	fileIn.close();
+	Server::ServerConfig conf;
+	Server serv(conf);
+	std::cout << serv.Start() << std::endl;
 	return true;
 }
 
@@ -60,25 +63,26 @@ void WebServer::Parse(std::ifstream& fileIn)
 												 UNEXPECTED(it, Token::LBRACE));
 			while (it->type != Token::RBRACE && it != tokens.end())
 			{
+				//it++;
+				//switch (it->type)
+				//{
+				//case Token::LISTEN:
+				//	it++;
+				//	if (it->type != Token::VALUE)
+				//	{
+				//		throw Tokenizer::SyntaxException(
+				//			*it, UNEXPECTED(it, Token::VALUE));
+				//	}
+				//case Token::SERVER_NAME:
+				//	it++;
+				//	if (it->type != Token::VALUE) {
+				//		throw Tokenizer::SyntaxException(
+				//			*it, UNEXPECTED(it, Token::VALUE));
+				//	}
+				//default:
+				//	return;
+				//}
 				it++;
-				switch (it->type)
-				{
-				case Token::LISTEN:
-					it++;
-					if (it->type != Token::VALUE)
-					{
-						throw Tokenizer::SyntaxException(
-							*it, UNEXPECTED(it, Token::VALUE));
-					}
-				case Token::SERVER_NAME:
-					it++;
-					if (it->type != Token::VALUE) {
-						throw Tokenizer::SyntaxException(
-							*it, UNEXPECTED(it, Token::VALUE));
-					}
-				default:
-					return;
-				}
 			}
 		}
 	}
