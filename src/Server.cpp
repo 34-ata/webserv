@@ -17,12 +17,13 @@ Server::~Server() {}
 
 Server::ServerConfig::ServerConfig()
 {
-	this->m_serverName		  = "";
-	this->m_clientMaxBodySize = "1M";
-	this->m_errorPages		  = std::map<int, std::string>();
-	this->m_locations		  = std::vector<Server::Location>();
-	this->m_listens			  = std::vector<std::string>(1,"80");
-	this->m_isRunning		  = false;
+	m_serverName		  = "";
+	m_clientMaxBodySize   = "1M";
+	m_errorPages		  = std::map<int, std::string>();
+	m_errorPages[404]     = "404.html";
+	m_locations		      = std::vector<Server::Location>();
+	m_listens			  = std::vector<std::string>(1,"8080");
+	m_isRunning		      = false;
 }
 
 bool Server::Start()

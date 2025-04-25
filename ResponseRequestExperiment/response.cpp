@@ -68,7 +68,7 @@ void prepareHttpResponse(int client_fd, const Request& req, const Config& conf) 
         } else {
             content = readFileContent(fullPath);
             if (content.empty()) {
-                std::map<int, std::string>::const_iterator it = conf.error_pages.find(404);
+                std::map<int, std::string>::const_iterator it = m_errorPages.find(404);
                 content = (it != conf.error_pages.end()) ? readFileContent(it->second) : "<h1>404 - Not Found</h1>";
                 status = "404 Not Found";
             } else {

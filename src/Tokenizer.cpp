@@ -86,7 +86,7 @@ Tokenizer::Tokenizer(std::istream& input)
 									   .col	 = m_col - nextText.length()});
 		}
 	}
-	PrintTokens();
+	//PrintTokens();
 }
 
 Tokenizer::~Tokenizer() {}
