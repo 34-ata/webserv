@@ -2,7 +2,8 @@
 
 Request::Request()
 {
-	method			= "GET";
-	path			= "about.html";
+	method			= "POST";
+	path			= "upload";
+	body			= "denemedenemedeneme";
 	headers["Host"] = "localhost";
 }
