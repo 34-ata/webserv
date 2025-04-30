@@ -39,7 +39,8 @@ bool WebServer::Init(const std::string& configFile)
 	fileIn.close();
 	Server::ServerConfig conf;
 	Server serv(conf);
-	std::cout << serv.Start() << std::endl;
+	if (serv.Start())
+		serv.Run();
 	return true;
 }
 

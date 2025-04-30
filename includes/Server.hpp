@@ -4,6 +4,12 @@
 #include <map>
 #include <string>
 #include <vector>
+#include <iostream>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <cstdlib>
+#include <cstdio>
+#include <poll.h>
 
 enum HttpMethods
 {
@@ -51,7 +57,9 @@ class Server
   public:
 	// It returns true when starting failed.
 	bool Start();
+	void Run();
 	void Stop();
+	int serverFd;
 
   private:
 	std::map<int, std::string> m_errorPages;
