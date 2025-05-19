@@ -7,72 +7,48 @@
 #include <exception>
 #include <istream>
 #include <list>
+#include <sstream>
 #include <string>
+#include <vector>
 
-struct Token
+struct ConfigDirective
 {
-	enum Type
+	std::string directiveName;
+	std::vector<std::string> args;
+};
+
+struct ConfigBlock
+{
+	std::string name;
+	std::vector<std::string> args;
+	std::vector<ConfigBlock*> childs;
+	std::vector<ConfigDirective> directives;
+	ConfigBlock* parent;
+
+	~ConfigBlock()
 	{
-		LBRACE,
-		RBRACE,
-		SEMICOLON,
-		SERVER,
-		LOCATION,
-		SERVER_NAME,
-		LISTEN,
-		ERROR_PAGE,
-		CLIENT_MAX_BODY,
-		ROOT,
-		INDEX,
-		AUTO_INDEX,
-		METHODS,
-		RETURN,
-		UPLOAD_STORE,
-		CGI_EXTENSION,
-		CGI_PATH,
-		VALUE,
-		END
-	};
-	Type type;
-	std::string text;
-	std::size_t row;
-	std::size_t col;
+		for (std::size_t i = 0; i < this->childs.size(); i++)
+			delete this->childs[i];
+	}
 };
 
 class Tokenizer
 {
   public:
-	class SyntaxException : std::exception
-	{
-	  public:
-		SyntaxException(const Token& token, const std::string& errorMsg);
-		virtual ~SyntaxException() throw();
-		virtual const char* what() const throw();
-
-	  private:
-		std::string m_errorMsg;
-	};
+	typedef std::list<std::string>::const_iterator const_iterator;
 
   public:
 	Tokenizer(std::istream& input);
 	~Tokenizer();
 
   public:
-	static Token::Type StringToType(const std::string& string);
-	static std::string TypeToString(Token::Type type);
-
-  public:
-	Token Next();
-	std::size_t GetCol() const;
-	std::size_t GetRow() const;
+	std::string Next();
 	void PrintTokens() const;
-	const std::list<Token>& GetTokens() const;
+	const std::list<std::string>& GetTokens() const;
 
   private:
 	std::istream& m_input;
-	std::list<Token> m_tokens;
-	std::size_t m_row;
-	std::size_t m_col;
+	std::list<std::string> m_tokens;
 	char m_char;
 
   private:

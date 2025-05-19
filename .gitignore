@@ -35,3 +35,6 @@ webserv.pdf
 compile_flags.txt
 build.log
 bin/
+dep/
+obj/
+.vscode/

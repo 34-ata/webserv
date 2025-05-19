@@ -22,8 +22,9 @@ SRCS = $(addprefix $S/, \
 	   main.cpp \
 	   Socket.cpp \
 	   Server.cpp \
-	   WebServer.cpp\
-	   Tokenizer.cpp\
+	   WebServer.cpp \
+	   Tokenizer.cpp \
+	   SyntaxException.cpp \
 	   )
 
 OBJS = $(SRCS:$S/%.cpp=$O/%.o)

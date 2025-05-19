@@ -1,7 +1,6 @@
 server {
     listen 8080;
     server_name localhost www.example.com;
-
     error_page 404 /errors/404.html;
     error_page 500 /errors/500.html;
 
@@ -38,7 +37,6 @@ server {
         methods GET;
     }
 }
-
 server {
     listen 8080;
     server_name api.example.com;
@@ -61,5 +59,7 @@ server {
         index index.html;
         autoindex off;
         methods GET;
-    }
+    }#deneme test;
+	#deneme test;
+	#deneme test;
 }
