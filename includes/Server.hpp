@@ -12,6 +12,8 @@
 #include <poll.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <algorithm>
+#include "../includes/virtualServer.hpp"
 
 enum HttpMethods
 {
@@ -57,10 +59,12 @@ class Server
 	~Server();
 
   public:
-	// It returns true when starting failed.
-	bool Start();
-	void Run();
-	void handleClient(int clientFd);
+	void Start(const std::vector<int>& ports);
+    void Run();
+    bool handleClient(int clientFd);
+
+    void addVirtualServer(const VirtualServer& vs);
+    const VirtualServer* findMatchingVirtualServer(const std::string& hostHeader, int port) const;
 	void Stop();
 
   private:
@@ -71,7 +75,11 @@ class Server
 	std::string m_clientMaxBodySize;
 	bool m_isRunning;
 	int serverFd;
-	std::vector<struct pollfd> pollFds;
+	std::vector<int> listenerFds;
+    std::vector<struct pollfd> pollFds;
+    std::map<int, std::string> clientBuffers;
+
+    std::map<int, std::vector<VirtualServer> > vserverMap; 
 };
 
 #endif // !SERVER_HPP
