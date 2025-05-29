@@ -50,8 +50,20 @@ bool WebServer::Init(const std::string& configFile)
 	fileIn.close();
 
 	Server serv(conf);
-	if (serv.Start() == EXIT_SUCCESS)
-		serv.Run();
+	VirtualServer vs1("0.0.0.0", 8080);
+	vs1.setServerName("foo.com");
+	vs1.setRoot("/var/www/foo");
+	vs1.addAllowedMethod("GET");
+
+	VirtualServer vs2("0.0.0.0", 8080);
+	vs2.setServerName("bar.com");
+	vs2.setRoot("/var/www/bar");
+	vs2.addAllowedMethod("GET");
+
+	serv.addVirtualServer(vs1);
+	serv.addVirtualServer(vs2);
+	serv.Start(std::vector<int>(1, 8080));
+	serv.Run();
 	return true;
 }
 

@@ -31,48 +31,99 @@ Server::ServerConfig::ServerConfig()
 	m_isRunning		      = false;
 }
 
-bool Server::Start()
+void Server::addVirtualServer(const VirtualServer& vs) {
+    int port = vs.getPort();
+    vserverMap[port].push_back(vs);
+}
+
+const VirtualServer* Server::findMatchingVirtualServer(const std::string& hostHeader, int port) const {
+    std::map<int, std::vector<VirtualServer> >::const_iterator it = vserverMap.find(port);
+    if (it == vserverMap.end() || it->second.empty())
+        return NULL;
+
+    const std::vector<VirtualServer>& servers = it->second;
+
+    for (size_t i = 0; i < servers.size(); ++i) {
+        if (servers[i].getServerName() == hostHeader)
+            return &servers[i];
+    }
+
+    return &servers[0];
+}
+
+static int setNonBlocking(int fd)
 {
-	serverFd = socket(AF_INET, SOCK_STREAM, 0);
-	if (serverFd == -1)
-	{
-		fprintf(stderr, "Error while trying to create socket!\n");
-		return (-1);
-	}
-	int opt = 1;
-	if (setsockopt(serverFd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0)
-	{
-		fprintf(stderr, "Error while setting socket option!\n");
-		return (-1);
-	}
+    int flags = fcntl(fd, F_GETFL, 0);
+    if (flags == -1) return -1;
+    return fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+}
 
-	struct sockaddr_in addr;
-	addr.sin_family = AF_INET;
-	addr.sin_port = htons(8080);
-	addr.sin_addr.s_addr = INADDR_ANY;
-
-	if (bind(serverFd, (struct sockaddr *)&addr, sizeof(addr)) < 0)
+void Server::Start(const std::vector<int>& ports)
+{
+    for (size_t i = 0; i < ports.size(); ++i)
 	{
-		fprintf(stderr, "Error while binding socket!\n");
-		return (-1);
-	}
+        int port = ports[i];
 
-	return (EXIT_SUCCESS);
+        int fd = socket(AF_INET, SOCK_STREAM, 0);
+        if (fd == -1)
+		{
+            perror("socket");
+            std::exit(1);
+        }
+
+        int opt = 1;
+        if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0)
+		{
+            perror("setsockopt");
+            std::exit(1);
+        }
+
+        struct sockaddr_in addr;
+        memset(&addr, 0, sizeof(addr));
+        addr.sin_family = AF_INET;
+        addr.sin_addr.s_addr = INADDR_ANY;
+        addr.sin_port = htons(port);
+
+        if (bind(fd, (struct sockaddr*)&addr, sizeof(addr)) < 0)
+		{
+            perror("bind");
+            std::exit(1);
+        }
+
+        if (listen(fd, SOMAXCONN) < 0)
+		{
+            perror("listen");
+            std::exit(1);
+        }
+
+        if (setNonBlocking(fd) < 0)
+		{
+            perror("fcntl");
+            std::exit(1);
+        }
+
+        struct pollfd pfd;
+        pfd.fd = fd;
+        pfd.events = POLLIN;
+
+        pollFds.push_back(pfd);
+        listenerFds.push_back(fd);
+
+        std::cout << "Listening on port " << port << " (fd=" << fd << ")" << std::endl;
+    }
+}
+
+int getPortFromSocket(int sockfd)
+{
+    struct sockaddr_in addr;
+    socklen_t len = sizeof(addr);
+    if (getsockname(sockfd, (struct sockaddr*)&addr, &len) == -1)
+        return -1;
+    return ntohs(addr.sin_port);
 }
 
 void Server::Run()
 {
-	if (listen(serverFd, SOMAXCONN) < 0)
-	{
-		fprintf(stderr, "Error while starting to listen socket!\n");
-		return ;
-	}
-
-	struct pollfd pfd;
-    pfd.fd = serverFd;
-    pfd.events = POLLIN;
-    pollFds.push_back(pfd);
-
     while (true)
 	{
         int ret = poll(&pollFds[0], pollFds.size(), -1);
@@ -84,72 +135,93 @@ void Server::Run()
 
         for (size_t i = 0; i < pollFds.size(); ++i)
 		{
+            int fd = pollFds[i].fd;
+
             if (pollFds[i].revents & POLLIN)
 			{
-                if (pollFds[i].fd == serverFd)
+                if (std::find(listenerFds.begin(), listenerFds.end(), fd) != listenerFds.end())
 				{
+
                     struct sockaddr_in clientAddr;
-                    socklen_t clientLen = sizeof(clientAddr);
-                    int clientFd = accept(serverFd, (struct sockaddr*)&clientAddr, &clientLen);
+                    socklen_t len = sizeof(clientAddr);
+                    int clientFd = accept(fd, (struct sockaddr*)&clientAddr, &len);
                     if (clientFd < 0)
 					{
                         perror("accept");
                         continue;
-                	}
-                	struct pollfd clientPoll;
-                	clientPoll.fd = clientFd;
-                	clientPoll.events = POLLIN;
-                	pollFds.push_back(clientPoll);
+                    }
+                    if (setNonBlocking(clientFd) < 0)
+					{
+                        perror("fcntl");
+                        close(clientFd);
+                        continue;
+                    }
 
-                	std::cout << "New client connected: fd=" << clientFd << std::endl;
+                    struct pollfd clientPoll;
+                    clientPoll.fd = clientFd;
+                    clientPoll.events = POLLIN;
+                    pollFds.push_back(clientPoll);
+
+                    std::cout << "New client on fd=" << clientFd << " (from port " << getPortFromSocket(fd) << ")\n";
                 }
-				else
+                else
 				{
-                	handleClient(pollFds[i].fd);
-    				close(pollFds[i].fd);
-    				pollFds.erase(pollFds.begin() + i);
-    				--i;
+                    bool done = handleClient(fd);
+                    if (done)
+					{
+                        close(fd);
+                        pollFds.erase(pollFds.begin() + i);
+                        clientBuffers.erase(fd);
+                        --i;
+                    }
                 }
             }
         }
     }
 }
 
-void Server::handleClient(int clientFd)
+bool Server::handleClient(int clientFd)
 {
-	printf("New connection: %d\n", clientFd);
-	char buffer[1024];
+    char buffer[1024];
     int bytes = recv(clientFd, buffer, sizeof(buffer) - 1, 0);
-
     if (bytes <= 0)
-	{
-        std::cerr << "Disconnected: fd=" << clientFd << std::endl;
-		return ;
-	}
-	buffer[bytes] = '\0';
-	std::cout << "Received complete request from fd=" << clientFd << ":\n"
-              << buffer << std::endl;
+        return true;
 
-	int fd = open("sample.html", O_RDONLY);
-	char response[1024];
-	read(fd, response, 1023);
-	response[1024] = '\0';
-	char header[512];
-	int body_length = 1024;
-	sprintf(header,
-    "HTTP/1.1 200 OK\r\n"
-    "Content-Type: text/html; charset=utf-8\r\n"
-    "Content-Length: %d\r\n"
-    "Connection: close\r\n"
-    "\r\n",
-    body_length);
-	send(clientFd, header, strlen(header), 0);
-	send(clientFd, response, 1024, 0);
-	printf("Message sent to the client!\n");
+    buffer[bytes] = '\0';
+    clientBuffers[clientFd] += buffer;
+
+    std::string& request = clientBuffers[clientFd];
+    if (request.find("\r\n\r\n") == std::string::npos)
+        return false;
+
+    std::string hostHeader;
+    size_t hostPos = request.find("Host:");
+    if (hostPos != std::string::npos)
+	{
+        size_t end = request.find("\r\n", hostPos);
+        if (end != std::string::npos)
+            hostHeader = request.substr(hostPos + 5, end - hostPos - 5);
+        
+        while (!hostHeader.empty() && (hostHeader[0] == ' ' || hostHeader[0] == '\t'))
+            hostHeader.erase(0, 1);
+    }
+
+    int port = 8080;
+
+    const VirtualServer* vs = findMatchingVirtualServer(hostHeader, port);
+    if (vs)
+        std::cout << "Matched server: " << vs->getServerName() << std::endl;
+    else
+        std::cout << "No matching virtual server found!" << std::endl;
+
+    std::string response = "HTTP/1.1 200 OK\r\nContent-Length: 12\r\n\r\nHello world\n";
+    send(clientFd, response.c_str(), response.size(), 0);
+
+    return true;
 }
+
 
 void Server::Stop()
 {
-	// Burada Socketler kapatılıp temizlenecek.
 	this->m_isRunning = false;
 }
