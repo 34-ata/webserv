@@ -2,7 +2,7 @@
 #define SERVER_HPP
 
 #include <map>
-#include <string>
+#include <string.h>
 #include <vector>
 #include <iostream>
 #include <sys/socket.h>
@@ -10,6 +10,8 @@
 #include <cstdlib>
 #include <cstdio>
 #include <poll.h>
+#include <fcntl.h>
+#include <unistd.h>
 
 enum HttpMethods
 {
@@ -58,8 +60,8 @@ class Server
 	// It returns true when starting failed.
 	bool Start();
 	void Run();
+	void handleClient(int clientFd);
 	void Stop();
-	int serverFd;
 
   private:
 	std::map<int, std::string> m_errorPages;
@@ -68,6 +70,8 @@ class Server
 	std::vector<std::string> m_listens;
 	std::string m_clientMaxBodySize;
 	bool m_isRunning;
+	int serverFd;
+	std::vector<struct pollfd> pollFds;
 };
 
 #endif // !SERVER_HPP
