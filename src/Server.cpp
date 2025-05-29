@@ -12,7 +12,13 @@ Server::Server(const Server::ServerConfig& config)
 	this->m_isRunning		  = false;
 }
 
-Server::~Server() {}
+Server::~Server()
+{
+	for (std::vector<struct pollfd>::iterator it = pollFds.begin(); it != pollFds.end(); ++it)
+	{
+        close(it->fd);
+	}
+}
 
 Server::ServerConfig::ServerConfig()
 {
@@ -27,88 +33,119 @@ Server::ServerConfig::ServerConfig()
 
 bool Server::Start()
 {
-	// Burada Socketler ve diğer sunucu başlatma kısımları olacak.
 	serverFd = socket(AF_INET, SOCK_STREAM, 0);
-	if (serverFd == -1) {perror("Socket"); exit(EXIT_FAILURE);}
-
+	if (serverFd == -1)
+	{
+		fprintf(stderr, "Error while trying to create socket!\n");
+		return (-1);
+	}
 	int opt = 1;
-	setsockopt(serverFd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+	if (setsockopt(serverFd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0)
+	{
+		fprintf(stderr, "Error while setting socket option!\n");
+		return (-1);
+	}
 
 	struct sockaddr_in addr;
-	addr.sin_family		 = AF_INET;
-	addr.sin_port		 = htons(PORT);
+	addr.sin_family = AF_INET;
+	addr.sin_port = htons(8080);
 	addr.sin_addr.s_addr = INADDR_ANY;
 
-	if (bind(serverFd, (struct sockaddr*)&addr, sizeof(addr)) == -1)
+	if (bind(serverFd, (struct sockaddr *)&addr, sizeof(addr)) < 0)
 	{
-		perror("bind");
-		exit(EXIT_FAILURE);
+		fprintf(stderr, "Error while binding socket!\n");
+		return (-1);
 	}
 
-	if (listen(serverFd, 128) == -1)
-	{
-		perror("listen");
-		exit(EXIT_FAILURE);
-	}
-
-	std::cout << "serverFd: " << serverFd << std::endl;
-	this->m_isRunning = true;
-	return this->m_isRunning;
-}
-
-void handleNewConnection(int serverFd, std::vector<struct pollfd>& fds)
-{
-	int clientFd = accept(serverFd, NULL, NULL);
-	std::cout << "Accepted new connection: " << clientFd << std::endl;
-	if (clientFd < 0)
-	{
-		perror("accept");
-		return;
-	}
-	struct pollfd clientPoll = {clientFd, POLLIN, 0};
-	fds.push_back(clientPoll);
-}
-
-void handleClientRequest(void)
-{
-	return ;
-}
-
-void handleClientWrite(void)
-{
-	return ;
+	return (EXIT_SUCCESS);
 }
 
 void Server::Run()
 {
-	std::vector<struct pollfd> fds(1);
-	fds[0].fd	  = serverFd;
-	fds[0].events = POLLIN;
-
-	while (true)
+	if (listen(serverFd, SOMAXCONN) < 0)
 	{
-		int ret = poll(&fds[0], fds.size(), -1);
-		if (ret < 0)
-		{
-			perror("poll");
-			break;
-		}
-
-		for (size_t i = 0; i < fds.size(); ++i)
-		{
-			if (fds[i].revents & POLLIN)
-			{
-				if (fds[i].fd == serverFd)
-					handleNewConnection(serverFd, fds);
-				else
-					handleClientRequest();
-			}
-			else if (fds[i].revents & POLLOUT)
-			{
-				handleClientWrite();
-			}
-		}
+		fprintf(stderr, "Error while starting to listen socket!\n");
+		return ;
 	}
+
+	struct pollfd pfd;
+    pfd.fd = serverFd;
+    pfd.events = POLLIN;
+    pollFds.push_back(pfd);
+
+    while (true)
+	{
+        int ret = poll(&pollFds[0], pollFds.size(), -1);
+        if (ret < 0)
+		{
+            perror("poll");
+            break;
+        }
+
+        for (size_t i = 0; i < pollFds.size(); ++i)
+		{
+            if (pollFds[i].revents & POLLIN)
+			{
+                if (pollFds[i].fd == serverFd)
+				{
+                    struct sockaddr_in clientAddr;
+                    socklen_t clientLen = sizeof(clientAddr);
+                    int clientFd = accept(serverFd, (struct sockaddr*)&clientAddr, &clientLen);
+                    if (clientFd < 0)
+					{
+                        perror("accept");
+                        continue;
+                	}
+                	struct pollfd clientPoll;
+                	clientPoll.fd = clientFd;
+                	clientPoll.events = POLLIN;
+                	pollFds.push_back(clientPoll);
+
+                	std::cout << "New client connected: fd=" << clientFd << std::endl;
+                }
+				else
+				{
+                	handleClient(pollFds[i].fd);
+    				close(pollFds[i].fd);
+    				pollFds.erase(pollFds.begin() + i);
+    				--i;
+                }
+            }
+        }
+    }
+}
+
+void Server::handleClient(int clientFd)
+{
+	printf("New connection: %d\n", clientFd);
+	char buffer[1024];
+    int bytes = recv(clientFd, buffer, sizeof(buffer) - 1, 0);
+
+    if (bytes <= 0)
+	{
+        std::cerr << "Disconnected: fd=" << clientFd << std::endl;
+		return ;
+	}
+	buffer[bytes] = '\0';
+	std::cout << "Received complete request from fd=" << clientFd << ":\n"
+              << buffer << std::endl;
+
+	int fd = open("sample.html", O_RDONLY);
+	char response[1024];
+	read(fd, response, 1023);
+	response[1024] = '\0';
+	char header[512];
+	int body_length = 1024;
+	sprintf(header,
+    "HTTP/1.1 200 OK\r\n"
+    "Content-Type: text/html; charset=utf-8\r\n"
+    "Content-Length: %d\r\n"
+    "Connection: close\r\n"
+    "\r\n",
+    body_length);
+	send(clientFd, header, strlen(header), 0);
+	send(clientFd, response, 1024, 0);
+	printf("Message sent to the client!\n");
 }
 
 void Server::Stop()

@@ -50,7 +50,7 @@ bool WebServer::Init(const std::string& configFile)
 	fileIn.close();
 
 	Server serv(conf);
-	if (serv.Start())
+	if (serv.Start() == EXIT_SUCCESS)
 		serv.Run();
 	return true;
 }
