@@ -13,7 +13,6 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <algorithm>
-#include "../includes/virtualServer.hpp"
 
 enum HttpMethods
 {
@@ -48,7 +47,7 @@ class Server
 		std::map<int, std::string> m_errorPages;
 		std::vector<Location> m_locations;
 		std::string m_serverName;
-		std::vector<std::string> m_listens;
+		std::vector<int> m_listens;
 		std::string m_clientMaxBodySize;
 		bool m_isRunning;
 	};
@@ -59,19 +58,17 @@ class Server
 	~Server();
 
   public:
-	void Start(const std::vector<int>& ports);
+	void Start();
     void Run();
     bool handleClient(int clientFd);
 
-    void addVirtualServer(const VirtualServer& vs);
-    const VirtualServer* findMatchingVirtualServer(const std::string& hostHeader, int port) const;
 	void Stop();
 
   private:
 	std::map<int, std::string> m_errorPages;
 	std::vector<Location> m_locations;
 	std::string m_serverName;
-	std::vector<std::string> m_listens;
+	std::vector<int> m_listens;
 	std::string m_clientMaxBodySize;
 	bool m_isRunning;
 	int serverFd;
@@ -79,7 +76,6 @@ class Server
     std::vector<struct pollfd> pollFds;
     std::map<int, std::string> clientBuffers;
 
-    std::map<int, std::vector<VirtualServer> > vserverMap; 
 };
 
 #endif // !SERVER_HPP

@@ -25,7 +25,6 @@ SRCS = $(addprefix $S/, \
 	   WebServer.cpp \
 	   Tokenizer.cpp \
 	   SyntaxException.cpp \
-	   virtualServer.cpp \
 	   )
 
 OBJS = $(SRCS:$S/%.cpp=$O/%.o)
