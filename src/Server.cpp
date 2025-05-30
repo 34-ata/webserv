@@ -31,7 +31,8 @@ Server::ServerConfig::ServerConfig()
 	m_isRunning		      = false;
 }
 
-void Server::addVirtualServer(const VirtualServer& vs) {
+void Server::addVirtualServer(const VirtualServer& vs)
+{
     int port = vs.getPort();
     vserverMap[port].push_back(vs);
 }
