@@ -1,41 +1,59 @@
 #include "Server.hpp"
 
-#define PORT 8080
-
 Server::Server(const Server::ServerConfig& config)
 {
-	this->m_serverName		  = config.m_serverName;
-	this->m_clientMaxBodySize = config.m_clientMaxBodySize;
-	this->m_errorPages		  = config.m_errorPages;
-	this->m_locations		  = config.m_locations;
-	this->m_listens			  = config.m_listens;
-	this->m_isRunning		  = false;
-}
-
-Server::~Server()
-{
-	for (std::vector<struct pollfd>::iterator it = pollFds.begin(); it != pollFds.end(); ++it)
-	{
-        close(it->fd);
-	}
+    this->m_serverName = config.m_serverName;
+    this->m_clientMaxBodySize = config.m_clientMaxBodySize;
+    this->m_errorPages = config.m_errorPages;
+    this->m_locations = config.m_locations;
+    this->m_listens = config.m_listens;
+    this->m_isRunning = false;
 }
 
 Server::ServerConfig::ServerConfig()
 {
-	m_serverName		  = "";
-	m_clientMaxBodySize   = "1M";
-	m_errorPages		  = std::map<int, std::string>();
-	m_errorPages[404]     = "404.html";
-	m_locations		      = std::vector<Server::Location>();
-	m_listens			  = std::vector<int>(8080);
-	m_isRunning		      = false;
+    m_serverName = "";
+    m_clientMaxBodySize = "1M";
+    m_errorPages[404] = "404.html";
+    m_isRunning = false;
 }
 
-static int setNonBlocking(int fd)
+Server::~Server()
 {
-    int flags = fcntl(fd, F_GETFL, 0);
-    if (flags == -1) return -1;
-    return fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+    for (std::vector<struct pollfd>::iterator it = pollFds.begin(); it != pollFds.end(); ++it) {
+        close(it->fd);
+    }
+}
+int getPortFromSocket(int fd)
+{
+    struct sockaddr_in addr;
+    socklen_t len = sizeof(addr);
+    if (getsockname(fd, (struct sockaddr*)&addr, &len) == -1)
+        return -1;
+    return ntohs(addr.sin_port);
+}
+
+Server* findMatchingServer(const std::string& host, int port, const std::vector<Server*>& servers)
+{
+    for (size_t i = 0; i < servers.size(); ++i)
+    {
+        const std::vector<int>& listens = servers[i]->getListens();
+        for (size_t j = 0; j < listens.size(); ++j)
+        {
+            if (listens[j] == port && servers[i]->getServerName() == host)
+                return servers[i];
+        }
+    }
+    for (size_t i = 0; i < servers.size(); ++i)
+    {
+        const std::vector<int>& listens = servers[i]->getListens();
+        for (size_t j = 0; j < listens.size(); ++j)
+        {
+            if (listens[j] == port)
+                return servers[i];
+        }
+    }
+    return NULL;
 }
 
 void Server::Start()
@@ -43,19 +61,14 @@ void Server::Start()
     for (size_t i = 0; i < this->m_listens.size(); ++i)
     {
         int port = this->m_listens[i];
-
         int fd = socket(AF_INET, SOCK_STREAM, 0);
-        if (fd == -1) {
+        if (fd == -1)
+        {
             perror("socket");
             continue;
         }
-
         int opt = 1;
-        if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0) {
-            perror("setsockopt");
-            close(fd);
-            continue;
-        }
+        setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
 
         struct sockaddr_in addr;
         memset(&addr, 0, sizeof(addr));
@@ -63,23 +76,16 @@ void Server::Start()
         addr.sin_addr.s_addr = INADDR_ANY;
         addr.sin_port = htons(port);
 
-        if (bind(fd, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
+        if (bind(fd, (struct sockaddr*)&addr, sizeof(addr)) < 0)
+        {
             perror("bind");
             close(fd);
             continue;
         }
+        listen(fd, SOMAXCONN);
 
-        if (listen(fd, SOMAXCONN) < 0) {
-            perror("listen");
-            close(fd);
-            continue;
-        }
-
-        if (setNonBlocking(fd) < 0) {
-            perror("fcntl");
-            close(fd);
-            continue;
-        }
+        int flags = fcntl(fd, F_GETFL, 0);
+        fcntl(fd, F_SETFL, flags | O_NONBLOCK);
 
         struct pollfd pfd;
         pfd.fd = fd;
@@ -87,57 +93,49 @@ void Server::Start()
 
         pollFds.push_back(pfd);
         listenerFds.push_back(fd);
-
         std::cout << "Listening on port " << port << " (fd=" << fd << ")" << std::endl;
     }
 }
 
-
-void Server::Run()
+void Server::Run(const std::vector<Server*>& servers)
 {
     while (true)
-	{
+    {
         int ret = poll(&pollFds[0], pollFds.size(), -1);
         if (ret < 0)
-		{
+        {
             perror("poll");
-            break;
+            return;
         }
 
         for (size_t i = 0; i < pollFds.size(); ++i)
-		{
+        {
             int fd = pollFds[i].fd;
-
             if (pollFds[i].revents & POLLIN)
-			{
+            {
                 if (std::find(listenerFds.begin(), listenerFds.end(), fd) != listenerFds.end())
-				{
-
+                {
                     struct sockaddr_in clientAddr;
                     socklen_t len = sizeof(clientAddr);
                     int clientFd = accept(fd, (struct sockaddr*)&clientAddr, &len);
                     if (clientFd < 0)
-					{
+                    {
                         perror("accept");
                         continue;
                     }
-                    if (setNonBlocking(clientFd) < 0)
-					{
-                        perror("fcntl");
-                        close(clientFd);
-                        continue;
-                    }
+                    int flags = fcntl(clientFd, F_GETFL, 0);
+                    fcntl(clientFd, F_SETFL, flags | O_NONBLOCK);
 
                     struct pollfd clientPoll;
                     clientPoll.fd = clientFd;
                     clientPoll.events = POLLIN;
                     pollFds.push_back(clientPoll);
-
                 }
                 else
-				{
-                    if (handleClient(fd))
-					{
+                {
+                    std::cout << "Deneme" << std::endl;
+                    if (handleClient(fd, servers))
+                    {
                         close(fd);
                         pollFds.erase(pollFds.begin() + i);
                         clientBuffers.erase(fd);
@@ -149,7 +147,7 @@ void Server::Run()
     }
 }
 
-bool Server::handleClient(int clientFd)
+bool Server::handleClient(int clientFd, const std::vector<Server*>& servers)
 {
     char buffer[1024];
     int bytes = recv(clientFd, buffer, sizeof(buffer) - 1, 0);
@@ -166,24 +164,28 @@ bool Server::handleClient(int clientFd)
     std::string hostHeader;
     size_t hostPos = request.find("Host:");
     if (hostPos != std::string::npos)
-	{
+    {
         size_t end = request.find("\r\n", hostPos);
         if (end != std::string::npos)
             hostHeader = request.substr(hostPos + 5, end - hostPos - 5);
-        
         while (!hostHeader.empty() && (hostHeader[0] == ' ' || hostHeader[0] == '\t'))
             hostHeader.erase(0, 1);
     }
 
-    std::cout << "Sending response to the: " << clientFd << std::endl;
+    int port = getPortFromSocket(clientFd);
+    Server* matched = findMatchingServer(hostHeader, port, servers);
+    if (matched)
+    {
+        std::cout << "Matched Server: " << matched->getServerName() << " on port " << port << std::endl;
+    }
+    else
+    {
+        std::cerr << "[ERROR] No matching server found for host: " << hostHeader << " port: " << port << std::endl;
+        return true;
+    }
+
+    std::cout << "Sending response to fd: " << clientFd << std::endl;
     std::string response = "HTTP/1.1 200 OK\r\nContent-Length: 12\r\n\r\nHello world\n";
     send(clientFd, response.c_str(), response.size(), 0);
-
     return true;
-}
-
-
-void Server::Stop()
-{
-	this->m_isRunning = false;
 }
