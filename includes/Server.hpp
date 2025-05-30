@@ -14,8 +14,7 @@
 #include <unistd.h>
 #include <algorithm>
 
-enum HttpMethods
-{
+enum HttpMethods {
 	GET,
 	POST,
 	HEAD,
@@ -27,11 +26,9 @@ enum HttpMethods
 	PATCH
 };
 
-class Server
-{
-  private:
-	struct Location
-	{
+class Server {
+  public:
+	struct Location {
 		std::string locUrl;
 		std::string rootPath;
 		std::string indexFile;
@@ -39,9 +36,7 @@ class Server
 		std::vector<HttpMethods> allowedMethods;
 	};
 
-  public:
-	struct ServerConfig
-	{
+	struct ServerConfig {
 		ServerConfig();
 
 		std::map<int, std::string> m_errorPages;
@@ -57,12 +52,16 @@ class Server
 	Server(const ServerConfig& config);
 	~Server();
 
-  public:
 	void Start();
-    void Run();
-    bool handleClient(int clientFd);
-
+	void Run(const std::vector<Server*>& servers);
+	bool handleClient(int clientFd, const std::vector<Server*>& servers);
 	void Stop();
+
+	const std::string& getServerName() const { return m_serverName; }
+	const std::vector<int>& getListens() const { return m_listens; }
+	const std::vector<Location>& getLocations() const { return m_locations; }
+	const std::map<int, std::string>& getErrorPages() const { return m_errorPages; }
+	const std::string& getClientMaxBodySize() const { return m_clientMaxBodySize; }
 
   private:
 	std::map<int, std::string> m_errorPages;
@@ -73,9 +72,12 @@ class Server
 	bool m_isRunning;
 	int serverFd;
 	std::vector<int> listenerFds;
-    std::vector<struct pollfd> pollFds;
-    std::map<int, std::string> clientBuffers;
-
+	std::vector<struct pollfd> pollFds;
+	std::map<int, std::string> clientBuffers;
 };
 
-#endif // !SERVER_HPP
+int getPortFromSocket(int fd);
+
+Server* findMatchingServer(const std::string& host, int port, const std::vector<Server*>& servers);
+
+#endif

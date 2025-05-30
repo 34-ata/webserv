@@ -1,85 +1,88 @@
-#include "WebServer.hpp"
+// ✅ Güncellenmiş WebServer.cpp
+#include "../includes/WebServer.hpp"
 #include "Server.hpp"
 #include "SyntaxException.hpp"
 #include "Tokenizer.hpp"
-#include <bits/types/locale_t.h>
-#include <cstddef>
-#include <cstdlib>
 #include <fstream>
 #include <iostream>
 #include <list>
-#include <ostream>
 #include <sstream>
-#include <string>
-#include <vector>
 
-WebServer::WebServer()
-{
+WebServer::WebServer() {
 	m_root.parent = NULL;
-	m_root.name	  = "root";
+	m_root.name = "root";
 }
 
-WebServer::WebServer(const WebServer& other) { *this = other; }
+WebServer::WebServer(const WebServer& other) {
+	*this = other;
+}
 
-WebServer::~WebServer() {}
+WebServer::~WebServer() {
+	for (size_t i = 0; i < m_servers.size(); ++i)
+		delete m_servers[i];
+}
 
-WebServer& WebServer::operator=(const WebServer& other)
-{
+WebServer& WebServer::operator=(const WebServer& other) {
 	(void)other;
 	return *this;
 }
 
-bool WebServer::Init(const std::string& configFile)
-{
+bool WebServer::Init(const std::string& configFile) {
 	std::ifstream fileIn;
-	Server::ServerConfig conf;
-
 	fileIn.open(configFile.c_str());
 	if (!fileIn.is_open())
 		return false;
-	try
-	{
+
+	try {
 		Parse(fileIn);
-	}
-	catch (const SyntaxException& e)
-	{
+	} catch (const SyntaxException& e) {
 		std::cerr << e.what() << std::endl;
 		fileIn.close();
 		return false;
 	}
 	fileIn.close();
 
-	conf.m_listens.clear();
-	conf.m_serverName.clear();
-	conf.m_listens.push_back(8080);
-	conf.m_listens.push_back(4242);
-	conf.m_listens.push_back(3000);
-	conf.m_serverName = "boo.com";
-	conf.m_isRunning = false;
+	Server::ServerConfig conf1;
+	conf1.m_serverName = "boo.com";
+	conf1.m_listens.push_back(8080);
+	conf1.m_isRunning = false;
 
-	Server serv(conf);
-	serv.Start();
-	serv.Run();
+	Server::ServerConfig conf2;
+	conf2.m_serverName = "foo.com";
+	conf2.m_listens.push_back(4242);
+	conf2.m_isRunning = false;
+
+	Server* s1 = new Server(conf1);
+	Server* s2 = new Server(conf2);
+
+	m_servers.push_back(s1);
+	m_servers.push_back(s2);
+
+	for (size_t i = 0; i < m_servers.size(); ++i)
+		m_servers[i]->Start();
+
+	while (true)
+	{
+		for (size_t i = 0; i < m_servers.size(); ++i)
+			m_servers[i]->Run(m_servers);
+	}
 	return true;
 }
 
 void ParseLocation(ConfigBlock* server, std::string locationPath,
 				   Tokenizer::const_iterator start,
-				   Tokenizer::const_iterator end)
-{
+				   Tokenizer::const_iterator end) {
 	ConfigDirective temp;
 	ConfigBlock* location = new ConfigBlock();
 	server->childs.push_back(location);
 
 	location->name = "location";
 	location->args.push_back(locationPath);
-	for (; start != end; start++)
-	{
+	for (; start != end; start++) {
 		temp.directiveName = *start;
 		temp.args.clear();
 		start++;
-		while (*start != ";")
-		{
+		while (*start != ";") {
 			temp.args.push_back(*start);
 			start++;
 		}
@@ -88,18 +91,15 @@ void ParseLocation(ConfigBlock* server, std::string locationPath,
 }
 
 void WebServer::ParseServer(std::list<std::string>::const_iterator start,
-							std::list<std::string>::const_iterator end)
-{
+							   std::list<std::string>::const_iterator end) {
 	ConfigBlock* server = new ConfigBlock();
 	ConfigDirective temp;
 	std::string locationPath;
 	m_root.childs.push_back(server);
 	server->name = "server";
 
-	for (; start != end; start++)
-	{
-		if (*start == "location")
-		{
+	for (; start != end; start++) {
+		if (*start == "location") {
 			start++;
 			if (*start == ";" || *start == "{" || *start == "}")
 				throw SyntaxException(UNEXPECTED(*start, "VALUE"));
@@ -112,14 +112,11 @@ void WebServer::ParseServer(std::list<std::string>::const_iterator start,
 			for (; *start != "}"; start++)
 				;
 			ParseLocation(server, locationPath, locationStart, start);
-		}
-		else
-		{
+		} else {
 			temp.directiveName = *start;
 			temp.args.clear();
 			start++;
-			while (*start != ";")
-			{
+			while (*start != ";") {
 				temp.args.push_back(*start);
 				start++;
 			}
@@ -128,12 +125,10 @@ void WebServer::ParseServer(std::list<std::string>::const_iterator start,
 	}
 }
 
-void CheckScopes(const Tokenizer& tokenizer)
-{
-	int indentLevel				 = 0;
+void CheckScopes(const Tokenizer& tokenizer) {
+	int indentLevel = 0;
 	Tokenizer::const_iterator it = tokenizer.GetTokens().begin();
-	for (; it != tokenizer.GetTokens().end(); it++)
-	{
+	for (; it != tokenizer.GetTokens().end(); it++) {
 		if (*it == "{")
 			indentLevel++;
 		if (*it == "}")
@@ -143,23 +138,19 @@ void CheckScopes(const Tokenizer& tokenizer)
 		throw SyntaxException("Unclosed Scope");
 }
 
-void WebServer::Parse(std::ifstream& fileIn)
-{
+void WebServer::Parse(std::ifstream& fileIn) {
 	Tokenizer tokenizer(fileIn);
 	CheckScopes(tokenizer);
 	Tokenizer::const_iterator it = tokenizer.GetTokens().begin();
-	while (it != tokenizer.GetTokens().end())
-	{
-		if (*it == "server")
-		{
+	while (it != tokenizer.GetTokens().end()) {
+		if (*it == "server") {
 			int indentLevel = 1;
 			it++;
 			if (*it != "{")
 				throw SyntaxException(UNEXPECTED(*it, "{"));
 			it++;
 			Tokenizer::const_iterator start = it;
-			while (it != tokenizer.GetTokens().end())
-			{
+			while (it != tokenizer.GetTokens().end()) {
 				if (*it == "{")
 					indentLevel++;
 				if (*it == "}")
@@ -169,8 +160,7 @@ void WebServer::Parse(std::ifstream& fileIn)
 				it++;
 			}
 			ParseServer(start, it);
-		}
-		else
+		} else
 			throw SyntaxException(UNEXPECTED(*it, "server"));
 		if (it == tokenizer.GetTokens().end())
 			throw SyntaxException("Unexpected EOF");
