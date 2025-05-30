@@ -49,24 +49,16 @@ bool WebServer::Init(const std::string& configFile)
 	}
 	fileIn.close();
 
+	conf.m_listens.clear();
+	conf.m_serverName.clear();
+	conf.m_listens.push_back(8080);
+	conf.m_listens.push_back(4242);
+	conf.m_listens.push_back(3000);
+	conf.m_serverName = "boo.com";
+	conf.m_isRunning = false;
+
 	Server serv(conf);
-	VirtualServer vs1("0.0.0.0", 8080);
-	vs1.setServerName("foo.com");
-	vs1.setRoot("/var/www/foo");
-	vs1.addAllowedMethod("GET");
-
-	VirtualServer vs2("0.0.0.0", 4242);
-	vs2.setServerName("bar.com");
-	vs2.setRoot("/var/www/bar");
-	vs2.addAllowedMethod("GET");
-
-	serv.addVirtualServer(vs1);
-	serv.addVirtualServer(vs2);
-	std::vector<int> ports;
-	ports.push_back(8080);
-	ports.push_back(4242);
-	serv.Start(ports);
-
+	serv.Start();
 	serv.Run();
 	return true;
 }

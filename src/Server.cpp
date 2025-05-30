@@ -27,29 +27,8 @@ Server::ServerConfig::ServerConfig()
 	m_errorPages		  = std::map<int, std::string>();
 	m_errorPages[404]     = "404.html";
 	m_locations		      = std::vector<Server::Location>();
-	m_listens			  = std::vector<std::string>(1,"8080");
+	m_listens			  = std::vector<int>(8080);
 	m_isRunning		      = false;
-}
-
-void Server::addVirtualServer(const VirtualServer& vs)
-{
-    int port = vs.getPort();
-    vserverMap[port].push_back(vs);
-}
-
-const VirtualServer* Server::findMatchingVirtualServer(const std::string& hostHeader, int port) const {
-    std::map<int, std::vector<VirtualServer> >::const_iterator it = vserverMap.find(port);
-    if (it == vserverMap.end() || it->second.empty())
-        return NULL;
-
-    const std::vector<VirtualServer>& servers = it->second;
-
-    for (size_t i = 0; i < servers.size(); ++i) {
-        if (servers[i].getServerName() == hostHeader)
-            return &servers[i];
-    }
-
-    return &servers[0];
 }
 
 static int setNonBlocking(int fd)
@@ -59,24 +38,23 @@ static int setNonBlocking(int fd)
     return fcntl(fd, F_SETFL, flags | O_NONBLOCK);
 }
 
-void Server::Start(const std::vector<int>& ports)
+void Server::Start()
 {
-    for (size_t i = 0; i < ports.size(); ++i)
-	{
-        int port = ports[i];
+    for (size_t i = 0; i < this->m_listens.size(); ++i)
+    {
+        int port = this->m_listens[i];
 
         int fd = socket(AF_INET, SOCK_STREAM, 0);
-        if (fd == -1)
-		{
+        if (fd == -1) {
             perror("socket");
-            std::exit(1);
+            continue;
         }
 
         int opt = 1;
-        if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0)
-		{
+        if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0) {
             perror("setsockopt");
-            std::exit(1);
+            close(fd);
+            continue;
         }
 
         struct sockaddr_in addr;
@@ -85,22 +63,22 @@ void Server::Start(const std::vector<int>& ports)
         addr.sin_addr.s_addr = INADDR_ANY;
         addr.sin_port = htons(port);
 
-        if (bind(fd, (struct sockaddr*)&addr, sizeof(addr)) < 0)
-		{
+        if (bind(fd, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
             perror("bind");
-            std::exit(1);
+            close(fd);
+            continue;
         }
 
-        if (listen(fd, SOMAXCONN) < 0)
-		{
+        if (listen(fd, SOMAXCONN) < 0) {
             perror("listen");
-            std::exit(1);
+            close(fd);
+            continue;
         }
 
-        if (setNonBlocking(fd) < 0)
-		{
+        if (setNonBlocking(fd) < 0) {
             perror("fcntl");
-            std::exit(1);
+            close(fd);
+            continue;
         }
 
         struct pollfd pfd;
@@ -114,14 +92,6 @@ void Server::Start(const std::vector<int>& ports)
     }
 }
 
-int getPortFromSocket(int sockfd)
-{
-    struct sockaddr_in addr;
-    socklen_t len = sizeof(addr);
-    if (getsockname(sockfd, (struct sockaddr*)&addr, &len) == -1)
-        return -1;
-    return ntohs(addr.sin_port);
-}
 
 void Server::Run()
 {
@@ -163,7 +133,6 @@ void Server::Run()
                     clientPoll.events = POLLIN;
                     pollFds.push_back(clientPoll);
 
-                    std::cout << "New client on fd=" << clientFd << " (from port " << getPortFromSocket(fd) << ")\n";
                 }
                 else
 				{
@@ -206,14 +175,7 @@ bool Server::handleClient(int clientFd)
             hostHeader.erase(0, 1);
     }
 
-    int port = getPortFromSocket(clientFd);
-
-    const VirtualServer* vs = findMatchingVirtualServer(hostHeader, port);
-    if (vs)
-        std::cout << "Matched server: " << vs->getServerName() << std::endl;
-    else
-        std::cout << "No matching virtual server found!" << std::endl;
-
+    std::cout << "Sending response to the: " << clientFd << std::endl;
     std::string response = "HTTP/1.1 200 OK\r\nContent-Length: 12\r\n\r\nHello world\n";
     send(clientFd, response.c_str(), response.size(), 0);
 
