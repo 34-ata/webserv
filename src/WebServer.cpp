@@ -55,14 +55,18 @@ bool WebServer::Init(const std::string& configFile)
 	vs1.setRoot("/var/www/foo");
 	vs1.addAllowedMethod("GET");
 
-	VirtualServer vs2("0.0.0.0", 8080);
+	VirtualServer vs2("0.0.0.0", 4242);
 	vs2.setServerName("bar.com");
 	vs2.setRoot("/var/www/bar");
 	vs2.addAllowedMethod("GET");
 
 	serv.addVirtualServer(vs1);
 	serv.addVirtualServer(vs2);
-	serv.Start(std::vector<int>(1, 8080));
+	std::vector<int> ports;
+	ports.push_back(8080);
+	ports.push_back(4242);
+	serv.Start(ports);
+
 	serv.Run();
 	return true;
 }

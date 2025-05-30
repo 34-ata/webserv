@@ -6,8 +6,6 @@
 #include <netinet/ip.h>
 #include <sys/socket.h>
 
-#define IP "127.0.0.1"
-
 int main(int argc, char** argv)
 {
 	if (argc != 2)
