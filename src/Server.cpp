@@ -167,8 +167,7 @@ void Server::Run()
                 }
                 else
 				{
-                    bool done = handleClient(fd);
-                    if (done)
+                    if (handleClient(fd))
 					{
                         close(fd);
                         pollFds.erase(pollFds.begin() + i);
@@ -207,7 +206,7 @@ bool Server::handleClient(int clientFd)
             hostHeader.erase(0, 1);
     }
 
-    int port = 8080;
+    int port = getPortFromSocket(clientFd);
 
     const VirtualServer* vs = findMatchingVirtualServer(hostHeader, port);
     if (vs)
