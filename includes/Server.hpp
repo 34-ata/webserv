@@ -1,20 +1,22 @@
 #ifndef SERVER_HPP
 #define SERVER_HPP
 
-#include <map>
-#include <string.h>
-#include <vector>
-#include <iostream>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <cstdlib>
-#include <cstdio>
-#include <poll.h>
-#include <fcntl.h>
-#include <unistd.h>
 #include <algorithm>
+#include <cstdio>
+#include <cstdlib>
+#include <fcntl.h>
+#include <iostream>
+#include <map>
+#include <netinet/in.h>
+#include <poll.h>
+#include <string.h>
+#include <string>
+#include <sys/socket.h>
+#include <unistd.h>
+#include <vector>
 
-enum HttpMethods {
+enum HttpMethods
+{
 	GET,
 	POST,
 	HEAD,
@@ -26,9 +28,11 @@ enum HttpMethods {
 	PATCH
 };
 
-class Server {
+class Server
+{
   public:
-	struct Location {
+	struct Location
+	{
 		std::string locUrl;
 		std::string rootPath;
 		std::string indexFile;
@@ -36,15 +40,16 @@ class Server {
 		std::vector<HttpMethods> allowedMethods;
 	};
 
-	struct ServerConfig {
+	struct ServerConfig
+	{
 		ServerConfig();
 
-		std::map<int, std::string> m_errorPages;
-		std::vector<Location> m_locations;
-		std::string m_serverName;
-		std::vector<int> m_listens;
-		std::string m_clientMaxBodySize;
-		bool m_isRunning;
+		std::map<int, std::string> errorPages;
+		std::vector<Location> locations;
+		std::string serverName;
+		std::vector<std::string> listens;
+		std::string clientMaxBodySize;
+		std::string rootPath;
 	};
 
   public:
@@ -57,18 +62,20 @@ class Server {
 	bool handleClient(int clientFd, const std::vector<Server*>& servers);
 	void Stop();
 
-	const std::string& getServerName() const { return m_serverName; }
-	const std::vector<int>& getListens() const { return m_listens; }
-	const std::vector<Location>& getLocations() const { return m_locations; }
-	const std::map<int, std::string>& getErrorPages() const { return m_errorPages; }
-	const std::string& getClientMaxBodySize() const { return m_clientMaxBodySize; }
+	const std::string& getServerName() const;
+	const std::vector<std::string>& getListens() const;
+	const std::vector<Location>& getLocations() const;
+	const std::map<int, std::string>& getErrorPages() const;
+	const std::string& getClientMaxBodySize() const;
+	const std::string& getRootPath() const;
 
   private:
 	std::map<int, std::string> m_errorPages;
 	std::vector<Location> m_locations;
 	std::string m_serverName;
-	std::vector<int> m_listens;
+	std::vector<std::string> m_listens;
 	std::string m_clientMaxBodySize;
+	std::string m_rootPath;
 	bool m_isRunning;
 	int serverFd;
 	std::vector<int> listenerFds;
@@ -78,6 +85,7 @@ class Server {
 
 int getPortFromSocket(int fd);
 
-Server* findMatchingServer(const std::string& host, int port, const std::vector<Server*>& servers);
+Server* findMatchingServer(const std::string& host, int port,
+						   const std::vector<Server*>& servers);
 
 #endif
