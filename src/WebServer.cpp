@@ -1,4 +1,3 @@
-// ✅ Güncellenmiş WebServer.cpp
 #include "../includes/WebServer.hpp"
 #include "Server.hpp"
 #include "SyntaxException.hpp"
@@ -42,15 +41,23 @@ bool WebServer::Init(const std::string& configFile) {
 	}
 	fileIn.close();
 
+	//Server::Location loc1;
+	//loc1.locUrl = "/";
+	//loc1.rootPath = "/var/www/html";
+
 	Server::ServerConfig conf1;
 	conf1.m_serverName = "boo.com";
 	conf1.m_listens.push_back(8080);
 	conf1.m_isRunning = false;
+	conf1.m_locations.clear();
+	//conf1.m_locations[0] = loc1;
 
 	Server::ServerConfig conf2;
 	conf2.m_serverName = "foo.com";
-	conf2.m_listens.push_back(4242);
+	conf2.m_listens.push_back(3000);
 	conf2.m_isRunning = false;
+	conf2.m_locations.clear();
+	//conf2.m_locations[0] = loc1;
 
 	Server* s1 = new Server(conf1);
 	Server* s2 = new Server(conf2);
