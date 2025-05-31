@@ -20,7 +20,8 @@ Server::ServerConfig::ServerConfig()
 
 Server::~Server()
 {
-    for (std::vector<struct pollfd>::iterator it = pollFds.begin(); it != pollFds.end(); ++it) {
+    for (std::vector<struct pollfd>::iterator it = pollFds.begin(); it != pollFds.end(); ++it)
+    {
         close(it->fd);
     }
 }
@@ -94,6 +95,7 @@ void Server::Start()
         pollFds.push_back(pfd);
         listenerFds.push_back(fd);
         std::cout << "Listening on port " << port << " (fd=" << fd << ")" << std::endl;
+
     }
 }
 
@@ -101,8 +103,7 @@ void Server::Run(const std::vector<Server*>& servers)
 {
     while (true)
     {
-        int ret = poll(&pollFds[0], pollFds.size(), -1);
-        if (ret < 0)
+        if (poll(&pollFds[0], pollFds.size(), -1) < 0)
         {
             perror("poll");
             return;
@@ -133,7 +134,6 @@ void Server::Run(const std::vector<Server*>& servers)
                 }
                 else
                 {
-                    std::cout << "Deneme" << std::endl;
                     if (handleClient(fd, servers))
                     {
                         close(fd);
@@ -151,6 +151,7 @@ bool Server::handleClient(int clientFd, const std::vector<Server*>& servers)
 {
     char buffer[1024];
     int bytes = recv(clientFd, buffer, sizeof(buffer) - 1, 0);
+    std::cout << "recv: " << std::endl << buffer << std::endl;
     if (bytes <= 0)
         return true;
 
