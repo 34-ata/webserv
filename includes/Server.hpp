@@ -52,40 +52,28 @@ class Server
 		std::string rootPath;
 	};
 
-  public:
 	Server();
 	Server(const ServerConfig& config);
 	~Server();
 
 	void Start();
-	void Run(const std::vector<Server*>& servers);
-	bool handleClient(int clientFd, const std::vector<Server*>& servers);
-	void Stop();
 
-	const std::string& getServerName() const;
-	const std::vector<std::string>& getListens() const;
-	const std::vector<Location>& getLocations() const;
-	const std::map<int, std::string>& getErrorPages() const;
-	const std::string& getClientMaxBodySize() const;
-	const std::string& getRootPath() const;
+	bool ownsFd(int fd) const;
+	void handleEvent(int fd);
+	std::vector<struct pollfd>& getPollFds();
+
+	std::vector<std::string> getListens() const;
+	std::string getServerName() const;
 
   private:
+	std::string m_serverName;
+	std::string m_clientMaxBodySize;
 	std::map<int, std::string> m_errorPages;
 	std::vector<Location> m_locations;
-	std::string m_serverName;
 	std::vector<std::string> m_listens;
-	std::string m_clientMaxBodySize;
-	std::string m_rootPath;
 	bool m_isRunning;
-	int serverFd;
-	std::vector<int> listenerFds;
 	std::vector<struct pollfd> pollFds;
-	std::map<int, std::string> clientBuffers;
+	std::vector<int> listenerFds;
 };
-
-int getPortFromSocket(int fd);
-
-Server* findMatchingServer(const std::string& host, int port,
-						   const std::vector<Server*>& servers);
 
 #endif
