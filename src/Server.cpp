@@ -106,8 +106,7 @@ void Server::Start()
 			continue;
 		}
 
-		int flags = fcntl(fd, F_GETFL, 0);
-		fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+		fcntl(fd, F_SETFL, O_NONBLOCK);
 
 		struct pollfd pfd;
 		pfd.fd = fd;
@@ -139,8 +138,7 @@ void Server::handleEvent(int fd)
 		int clientFd = accept(fd, (struct sockaddr*)&clientAddr, &len);
 		if (clientFd >= 0)
 		{
-			int flags = fcntl(clientFd, F_GETFL, 0);
-			fcntl(clientFd, F_SETFL, flags | O_NONBLOCK);
+			fcntl(fd, F_SETFL, O_NONBLOCK);
 			struct pollfd clientPoll;
 			clientPoll.fd = clientFd;
 			clientPoll.events = POLLIN;
