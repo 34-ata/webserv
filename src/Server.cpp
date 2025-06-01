@@ -1,10 +1,5 @@
 #include "Server.hpp"
-#include <algorithm>
-#include <cstddef>
-#include <cstdlib>
-#include <string>
-#include <sys/types.h>
-#include <vector>
+
 
 Server::Server(const Server::ServerConfig& config)
 {
@@ -41,54 +36,61 @@ int getPortFromSocket(int fd)
 	return ntohs(addr.sin_port);
 }
 
-Server* findMatchingServer(const std::string& host, int port,
-						   const std::vector<Server*>& servers)
+Server* findMatchingServer(const std::string& ip, int port, const std::vector<Server*>& servers)
 {
 	for (size_t i = 0; i < servers.size(); ++i)
 	{
-		const std::vector<std::string>& listens = servers[i]->getListens();
+		const std::vector<std::pair<std::string, std::string> >& listens = servers[i]->getListens();
 		for (size_t j = 0; j < listens.size(); ++j)
 		{
-			if (std::atoi(listens[j].c_str()) == port
-				&& servers[i]->getServerName() == host)
+			if (listens[j].first == ip && std::atoi(listens[j].second.c_str()) == port)
 				return servers[i];
 		}
 	}
+
 	for (size_t i = 0; i < servers.size(); ++i)
 	{
-		const std::vector<std::string>& listens = servers[i]->getListens();
+		const std::vector<std::pair<std::string, std::string> >& listens = servers[i]->getListens();
 		for (size_t j = 0; j < listens.size(); ++j)
 		{
-			if (std::atoi(listens[j].c_str()) == port)
+			if (std::atoi(listens[j].second.c_str()) == port)
 				return servers[i];
 		}
 	}
-	return NULL;
+
+	return servers[0];
 }
+
 
 void Server::Start()
 {
 	for (size_t i = 0; i < this->m_listens.size(); ++i)
 	{
-		int port;
-		int ipAddr;
+		std::string ip = this->m_listens[i].first;
+		std::string portStr = this->m_listens[i].second;
+		int port = std::atoi(portStr.c_str());
 
-		ipAddr = INADDR_ANY;
-		port   = std::atoi(this->m_listens[i].c_str());
 		int fd = socket(AF_INET, SOCK_STREAM, 0);
 		if (fd == -1)
 		{
 			perror("socket");
 			continue;
 		}
+
 		int opt = 1;
 		setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
 
 		struct sockaddr_in addr;
 		memset(&addr, 0, sizeof(addr));
-		addr.sin_family		 = AF_INET;
-		addr.sin_addr.s_addr = ipAddr;
-		addr.sin_port		 = htons(port);
+		addr.sin_family = AF_INET;
+		addr.sin_port = htons(port);
+
+		if (inet_pton(AF_INET, ip.c_str(), &addr.sin_addr) <= 0)
+		{
+			std::cerr << "Invalid IP address: " << ip << std::endl;
+			close(fd);
+			continue;
+		}
 
 		if (bind(fd, (struct sockaddr*)&addr, sizeof(addr)) < 0)
 		{
@@ -96,19 +98,25 @@ void Server::Start()
 			close(fd);
 			continue;
 		}
-		listen(fd, SOMAXCONN);
+
+		if (listen(fd, SOMAXCONN) < 0)
+		{
+			perror("listen");
+			close(fd);
+			continue;
+		}
 
 		int flags = fcntl(fd, F_GETFL, 0);
 		fcntl(fd, F_SETFL, flags | O_NONBLOCK);
 
 		struct pollfd pfd;
-		pfd.fd	   = fd;
+		pfd.fd = fd;
 		pfd.events = POLLIN;
 
 		pollFds.push_back(pfd);
 		listenerFds.push_back(fd);
-		std::cout << "Listening on port " << port << " (fd=" << fd << ")"
-				  << std::endl;
+
+		std::cout << "Listening on " << ip << ":" << port << " (fd=" << fd << ")" << std::endl;
 	}
 }
 
@@ -161,7 +169,7 @@ std::vector<struct pollfd>& Server::getPollFds()
 	return pollFds;
 }
 
-std::vector<std::string> Server::getListens() const
+std::vector<std::pair<std::string, std::string> > Server::getListens() const
 {
 	return m_listens;
 }
