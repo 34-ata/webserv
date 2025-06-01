@@ -6,6 +6,7 @@
 #include <vector>
 #include <fstream>
 #include "Tokenizer.hpp"
+#include <arpa/inet.h>
 
 class WebServer
 {

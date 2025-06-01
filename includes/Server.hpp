@@ -14,6 +14,9 @@
 #include <sys/socket.h>
 #include <unistd.h>
 #include <vector>
+#include <cstddef>
+#include <sys/types.h>
+#include <arpa/inet.h>
 
 enum HttpMethods
 {
@@ -47,7 +50,7 @@ class Server
 		std::map<int, std::string> errorPages;
 		std::vector<Location> locations;
 		std::string serverName;
-		std::vector<std::string> listens;
+		std::vector<std::pair<std::string, std::string> > listens;
 		std::string clientMaxBodySize;
 		std::string rootPath;
 	};
@@ -62,7 +65,7 @@ class Server
 	void handleEvent(int fd);
 	std::vector<struct pollfd>& getPollFds();
 
-	std::vector<std::string> getListens() const;
+	std::vector<std::pair<std::string, std::string> > getListens() const;
 	std::string getServerName() const;
 
   private:
@@ -70,10 +73,12 @@ class Server
 	std::string m_clientMaxBodySize;
 	std::map<int, std::string> m_errorPages;
 	std::vector<Location> m_locations;
-	std::vector<std::string> m_listens;
+	std::vector<std::pair<std::string, std::string> > m_listens;
 	bool m_isRunning;
 	std::vector<struct pollfd> pollFds;
 	std::vector<int> listenerFds;
 };
+
+Server* findMatchingServer(const std::string& ip, int port, const std::vector<Server*>& servers);
 
 #endif

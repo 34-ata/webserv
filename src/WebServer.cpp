@@ -46,16 +46,16 @@ bool WebServer::Init(const std::string& configFile)
 	fileIn.close();
 
 	Server::ServerConfig conf1;
-	conf1.serverName = "localhost";
-	conf1.listens.push_back("8080");
+	conf1.serverName = "loopback_server";
+	conf1.listens.push_back(std::make_pair("127.0.0.1", "8080"));
 
 	Server::ServerConfig conf2;
-	conf2.serverName = "testserver";
-	conf2.listens.push_back("9090");
+	conf2.serverName = "anyip_server";
+	conf2.listens.push_back(std::make_pair("0.0.0.0", "8080"));
 
 	Server::ServerConfig conf3;
-	conf3.serverName = "third";
-	conf3.listens.push_back("4242");
+	conf3.serverName = "localnet_server";
+	conf3.listens.push_back(std::make_pair("192.168.1.101", "8080"));
 
 	m_servers.push_back(new Server(conf1));
 	m_servers.push_back(new Server(conf2));
@@ -66,7 +66,6 @@ bool WebServer::Init(const std::string& configFile)
 
 	return true;
 }
-
 
 void WebServer::Run()
 {
@@ -90,19 +89,30 @@ void WebServer::Run()
 		{
 			if (fds[i].revents & POLLIN)
 			{
-				for (size_t j = 0; j < m_servers.size(); ++j)
+				struct sockaddr_in addr;
+				socklen_t len = sizeof(addr);
+				if (getsockname(fds[i].fd, (struct sockaddr*)&addr, &len) == -1)
 				{
-					if (m_servers[j]->ownsFd(fds[i].fd))
-					{
-						m_servers[j]->handleEvent(fds[i].fd);
-						break;
-					}
+					perror("getsockname");
+					continue;
 				}
+
+				char ip[INET_ADDRSTRLEN];
+				if (!inet_ntop(AF_INET, &addr.sin_addr, ip, sizeof(ip)))
+				{
+					perror("inet_ntop");
+					continue;
+				}
+
+				int port = ntohs(addr.sin_port);
+
+				Server* matched = findMatchingServer(ip, port, m_servers);
+				if (matched)
+					matched->handleEvent(fds[i].fd);
 			}
 		}
 	}
 }
-
 
 void ParseLocation(ConfigBlock* server, std::string locationPath,
 				   Tokenizer::const_iterator start,
