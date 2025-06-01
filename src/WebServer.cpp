@@ -26,53 +26,83 @@ WebServer& WebServer::operator=(const WebServer& other) {
 	return *this;
 }
 
-bool WebServer::Init(const std::string& configFile) {
+bool WebServer::Init(const std::string& configFile)
+{
 	std::ifstream fileIn;
 	fileIn.open(configFile.c_str());
 	if (!fileIn.is_open())
 		return false;
 
-	try {
+	try
+	{
 		Parse(fileIn);
-	} catch (const SyntaxException& e) {
+	}
+	catch (const SyntaxException& e)
+	{
 		std::cerr << e.what() << std::endl;
 		fileIn.close();
 		return false;
 	}
 	fileIn.close();
 
-	//Server::Location loc1;
-	//loc1.locUrl = "/";
-	//loc1.rootPath = "/var/www/html";
-
 	Server::ServerConfig conf1;
-	conf1.serverName = "boo.com";
+	conf1.serverName = "localhost";
 	conf1.listens.push_back("8080");
-	conf1.locations.clear();
-	//conf1.m_locations[0] = loc1;
 
 	Server::ServerConfig conf2;
-	conf2.serverName = "foo.com";
-	conf2.listens.push_back("3000");
-	conf2.locations.clear();
-	//conf2.m_locations[0] = loc1;
+	conf2.serverName = "testserver";
+	conf2.listens.push_back("9090");
 
-	Server* s1 = new Server(conf1);
-	Server* s2 = new Server(conf2);
+	Server::ServerConfig conf3;
+	conf3.serverName = "third";
+	conf3.listens.push_back("4242");
 
-	m_servers.push_back(s1);
-	m_servers.push_back(s2);
+	m_servers.push_back(new Server(conf1));
+	m_servers.push_back(new Server(conf2));
+	m_servers.push_back(new Server(conf3));
 
 	for (size_t i = 0; i < m_servers.size(); ++i)
 		m_servers[i]->Start();
 
-	while (true)
-	{
-		for (size_t i = 0; i < m_servers.size(); ++i)
-			m_servers[i]->Run(m_servers);
-	}
 	return true;
 }
+
+
+void WebServer::Run()
+{
+	while (true)
+	{
+		std::vector<struct pollfd> fds;
+
+		for (size_t i = 0; i < m_servers.size(); ++i)
+		{
+			const std::vector<struct pollfd>& serverFds = m_servers[i]->getPollFds();
+			fds.insert(fds.end(), serverFds.begin(), serverFds.end());
+		}
+
+		if (poll(&fds[0], fds.size(), -1) < 0)
+		{
+			perror("poll");
+			break;
+		}
+
+		for (size_t i = 0; i < fds.size(); ++i)
+		{
+			if (fds[i].revents & POLLIN)
+			{
+				for (size_t j = 0; j < m_servers.size(); ++j)
+				{
+					if (m_servers[j]->ownsFd(fds[i].fd))
+					{
+						m_servers[j]->handleEvent(fds[i].fd);
+						break;
+					}
+				}
+			}
+		}
+	}
+}
+
 
 void ParseLocation(ConfigBlock* server, std::string locationPath,
 				   Tokenizer::const_iterator start,

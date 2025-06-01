@@ -7,7 +7,8 @@
 #include <fstream>
 #include "Tokenizer.hpp"
 
-class WebServer {
+class WebServer
+{
   public:
 	WebServer();
 	WebServer(const WebServer& other);
@@ -15,6 +16,7 @@ class WebServer {
 	~WebServer();
 
 	bool Init(const std::string& configFile);
+	void Run();
 
   private:
 	void Parse(std::ifstream& fileIn);

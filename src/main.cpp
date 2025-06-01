@@ -14,5 +14,7 @@ int main(int argc, char** argv)
 	WebServer ws;
 	if (!ws.Init(argv[1]))
 		std::cerr << "Failed to init server." << std::endl;
+	
+	ws.Run();
 	return (0);
 }
