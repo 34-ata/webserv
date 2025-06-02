@@ -51,11 +51,11 @@ bool WebServer::Init(const std::string& configFile)
 
 	Server::ServerConfig conf2;
 	conf2.serverName = "anyip_server";
-	conf2.listens.push_back(std::make_pair("0.0.0.0", "8080"));
+	conf2.listens.push_back(std::make_pair("0.0.0.0", "9080"));
 
 	Server::ServerConfig conf3;
 	conf3.serverName = "localnet_server";
-	conf3.listens.push_back(std::make_pair("192.168.1.101", "8080"));
+	conf3.listens.push_back(std::make_pair("10.11.43.5", "8080"));
 
 	m_servers.push_back(new Server(conf1));
 	m_servers.push_back(new Server(conf2));
