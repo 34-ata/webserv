@@ -1,25 +1,22 @@
 #ifndef SERVER_HPP
 #define SERVER_HPP
 
-#include <algorithm>
 #include <cstdio>
 #include <cstdlib>
 #include <fcntl.h>
-#include <iostream>
 #include <map>
 #include <netinet/in.h>
 #include <poll.h>
-#include <string.h>
 #include <string>
 #include <sys/socket.h>
 #include <unistd.h>
 #include <vector>
-#include <cstddef>
 #include <sys/types.h>
 #include <arpa/inet.h>
 
 enum HttpMethods
 {
+	INVALID = -1,
 	GET,
 	POST,
 	HEAD,
