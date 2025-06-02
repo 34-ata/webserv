@@ -2,6 +2,7 @@
 #include "Request.hpp"
 #include <algorithm>
 #include <cstddef>
+#include <cstdlib>
 #include <cstring>
 #include <iostream>
 #include <string>
@@ -159,27 +160,28 @@ void Server::handleEvent(int fd)
 	}
 	else
 	{
+		Request request;
 		std::string cahce;
 		std::size_t splitter;
 		char buffer[1024];
 		memset(&buffer, 0, 1024);
-		int bytes = recv(fd, buffer, sizeof(buffer) - 1, 0);
-		if (bytes > 0)
+		while (int bytes = recv(fd, buffer, sizeof(buffer) - 1, 0))
 		{
-			buffer[bytes] = '\0';
+			buffer[bytes] = 0;
 			cahce.append(buffer);
 			splitter = cahce.find("\r\n\r\n");
 			std::cout << splitter << std::endl;
 			if (splitter == std::string::npos)
-				return;
+				continue;
+			request.fillRequest(cahce.substr(0, splitter));
+			if (request.getData().size()
+				< splitter + request.getBodyLenght() + 4)
+				continue;
 			request = createRequest(cahce, splitter);
-			std::cout << "RecvMethod: " << request.getMethod() << std::endl;
-			std::cout << request.getData() << std::endl;
 		}
-		else
-		{
-			close(fd);
-		}
+		std::cout << "RecvMethod: " << request.getMethod() << std::endl;
+		std::cout << request.getData() << std::endl;
+		close(fd);
 	}
 }
 
