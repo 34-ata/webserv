@@ -1,6 +1,7 @@
 #ifndef SERVER_HPP
 #define SERVER_HPP
 
+#include <cstddef>
 #include <cstdio>
 #include <cstdlib>
 #include <fcntl.h>
@@ -13,6 +14,8 @@
 #include <vector>
 #include <sys/types.h>
 #include <arpa/inet.h>
+
+class Request;
 
 enum HttpMethods
 {
@@ -61,6 +64,7 @@ class Server
 	bool ownsFd(int fd) const;
 	void handleEvent(int fd);
 	std::vector<struct pollfd>& getPollFds();
+	Request createRequest(const std::string& cache, std::size_t bodyIndex);
 
 	std::vector<std::pair<std::string, std::string> > getListens() const;
 	std::string getServerName() const;

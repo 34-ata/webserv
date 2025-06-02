@@ -2,6 +2,9 @@
 #define REQUEST_HPP
 
 #include "Server.hpp"
+#include <cstddef>
+#include <cstdio>
+#include <cstdlib>
 #include <string>
 
 class Request
@@ -19,6 +22,7 @@ class Request
 	HttpMethods getMethod() const;
 	const std::string& getData() const;
 	const std::string& getBody() const;
+	size_t getBodyLenght() const;
 
   private:
 	std::string data;
@@ -26,7 +30,7 @@ class Request
 
 HttpMethods Request::getMethod() const
 {
-	std::string method = data.substr(0 ,data.find(" "));
+	std::string method = data.substr(0, data.find(" "));
 	if (method == "GET")
 		return GET;
 	if (method == "POST")
@@ -36,9 +40,21 @@ HttpMethods Request::getMethod() const
 	return INVALID;
 }
 
-void Request::fillRequest(const std::string& buffer)
+const std::string& Request::getData() const { return data; }
+
+size_t Request::getBodyLenght() const
 {
-	data.append(buffer);
+	return std::atoi(data.c_str() + data.find("Content-Length") + 15);
+}
+
+void Request::fillRequest(const std::string& buffer) { data.append(buffer); }
+
+Request& Request::operator=(const Request& other)
+{
+	if (this == &other)
+		return *this;
+	this->data = other.data;
+	return *this;
 }
 
 Request::Request() {}
