@@ -68,6 +68,7 @@ class Server
 
 	std::vector<std::pair<std::string, std::string> > getListens() const;
 	std::string getServerName() const;
+	void removePollFd(int fd);
 
   private:
 	std::string m_serverName;
