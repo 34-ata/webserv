@@ -55,7 +55,7 @@ bool WebServer::Init(const std::string& configFile)
 
 	Server::ServerConfig conf3;
 	conf3.serverName = "localnet_server";
-	conf3.listens.push_back(std::make_pair("10.11.43.3", "4242"));
+	conf3.listens.push_back(std::make_pair("192.168.1.101", "4242"));
 
 	m_servers.push_back(new Server(conf1));
 	m_servers.push_back(new Server(conf2));
