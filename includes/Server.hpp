@@ -1,6 +1,7 @@
 #ifndef SERVER_HPP
 #define SERVER_HPP
 
+#include <arpa/inet.h>
 #include <cstddef>
 #include <cstdio>
 #include <cstdlib>
@@ -8,12 +9,13 @@
 #include <map>
 #include <netinet/in.h>
 #include <poll.h>
+#include <queue>
+#include <sstream>
 #include <string>
 #include <sys/socket.h>
+#include <sys/types.h>
 #include <unistd.h>
 #include <vector>
-#include <sys/types.h>
-#include <arpa/inet.h>
 
 class Request;
 
@@ -40,17 +42,17 @@ class Server
 		std::string rootPath;
 		std::string indexFile;
 		bool autoIndex;
-		std::vector<HttpMethods> allowedMethods;
+		std::vector< HttpMethods > allowedMethods;
 	};
 
 	struct ServerConfig
 	{
 		ServerConfig();
 
-		std::map<int, std::string> errorPages;
-		std::vector<Location> locations;
+		std::map< int, std::string > errorPages;
+		std::vector< Location > locations;
 		std::string serverName;
-		std::vector<std::pair<std::string, std::string> > listens;
+		std::vector< std::pair< std::string, std::string > > listens;
 		std::string clientMaxBodySize;
 		std::string rootPath;
 	};
@@ -63,23 +65,25 @@ class Server
 
 	bool ownsFd(int fd) const;
 	void handleEvent(int fd);
-	std::vector<struct pollfd>& getPollFds();
-	Request createRequest(const std::string& cache, std::size_t bodyIndex);
+	std::vector< struct pollfd >& getPollFds();
+	Request *emptyCache(std::stringstream& cache);
 
-	std::vector<std::pair<std::string, std::string> > getListens() const;
+	std::vector< std::pair< std::string, std::string > > getListens() const;
 	std::string getServerName() const;
 
   private:
 	std::string m_serverName;
 	std::string m_clientMaxBodySize;
-	std::map<int, std::string> m_errorPages;
-	std::vector<Location> m_locations;
-	std::vector<std::pair<std::string, std::string> > m_listens;
+	std::map< int, std::string > m_errorPages;
+	std::vector< Location > m_locations;
+	std::vector< std::pair< std::string, std::string > > m_listens;
 	bool m_isRunning;
-	std::vector<struct pollfd> pollFds;
-	std::vector<int> listenerFds;
+	std::vector< struct pollfd > pollFds;
+	std::vector< int > listenerFds;
+	std::queue< Request* > requestQueue;
 };
 
-Server* findMatchingServer(const std::string& ip, int port, const std::vector<Server*>& servers);
+Server* findMatchingServer(const std::string& ip, int port,
+						   const std::vector< Server* >& servers);
 
 #endif

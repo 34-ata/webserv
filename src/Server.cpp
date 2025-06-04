@@ -1,11 +1,16 @@
 #include "Server.hpp"
+#include "Log.hpp"
 #include "Request.hpp"
 #include <algorithm>
 #include <cstddef>
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
+#include <queue>
+#include <sstream>
 #include <string>
+#include <unistd.h>
 
 Server::Server(const Server::ServerConfig& config)
 {
@@ -30,6 +35,11 @@ Server::~Server()
 		 it != pollFds.end(); ++it)
 	{
 		close(it->fd);
+	}
+	while (0 < requestQueue.size())
+	{
+		delete requestQueue.front();
+		requestQueue.pop();
 	}
 }
 
@@ -141,7 +151,6 @@ bool Server::ownsFd(int fd) const
 
 void Server::handleEvent(int fd)
 {
-	Request request;
 	std::cout << "Starting to handle Request" << std::endl;
 	if (std::find(listenerFds.begin(), listenerFds.end(), fd)
 		!= listenerFds.end())
@@ -160,37 +169,59 @@ void Server::handleEvent(int fd)
 	}
 	else
 	{
-		Request request;
-		std::string cahce;
-		std::size_t splitter;
+		std::stringstream cache;
 		char buffer[1024];
 		memset(&buffer, 0, 1024);
 		while (int bytes = recv(fd, buffer, sizeof(buffer) - 1, 0))
 		{
 			buffer[bytes] = 0;
-			cahce.append(buffer);
-			splitter = cahce.find("\r\n\r\n");
-			std::cout << splitter << std::endl;
-			if (splitter == std::string::npos)
-				continue;
-			request.fillRequest(cahce.substr(0, splitter));
-			if (request.getData().size()
-				< splitter + request.getBodyLenght() + 4)
-				continue;
-			request = createRequest(cahce, splitter);
+			cache << buffer;
 		}
-		std::cout << "RecvMethod: " << request.getMethod() << std::endl;
-		std::cout << request.getData() << std::endl;
+		while (cache)
+		{
+			Request* req = emptyCache(cache);
+			requestQueue.push(req);
+		}
+		while (requestQueue.size())
+		{
+			//std::cout << requestQueue.front()->getBadRequest() << std::endl;
+			//std::cout << requestQueue.front()->getData() << std::endl;
+			requestQueue.pop();
+		}
 		close(fd);
 	}
 }
 
-Request Server::createRequest(const std::string& cache, std::size_t bodyIndex)
+Request* Server::emptyCache(std::stringstream& cache)
 {
-	Request request;
-	request.fillRequest(cache.substr(0, bodyIndex));
-	request.fillRequest(cache.substr(bodyIndex, request.getBodyLenght() + 4));
-	return request;
+	Request* req	 = new Request();
+	bool headerFound = false;
+	std::string res;
+	while (std::getline(cache, res))
+	{
+		res.append("\n");
+		req->fillRequest(res);
+		if (req->getData().find("\r\n\r\n") != std::string::npos)
+		{
+			headerFound = true;
+			break;
+		}
+	}
+	if (!headerFound)
+	{
+		req->setBadRequest();
+		return req;
+	}
+	res.clear();
+	char bodyChar;
+	for (size_t i = 0; i < req->getBodyLenght(); i++)
+	{
+		cache.get(bodyChar);
+		res.append(1, bodyChar);
+	}
+	req->fillRequest(res);
+	req->checkIntegrity();
+	return req;
 }
 
 std::vector< struct pollfd >& Server::getPollFds() { return pollFds; }
