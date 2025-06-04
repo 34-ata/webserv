@@ -149,6 +149,18 @@ bool Server::ownsFd(int fd) const
 	return false;
 }
 
+void Server::removePollFd(int fd)
+{
+	for (size_t i = 0; i < pollFds.size(); ++i)
+	{
+		if (pollFds[i].fd == fd)
+		{
+			pollFds.erase(pollFds.begin() + i);
+			break;
+		}
+	}
+}
+
 void Server::handleEvent(int fd)
 {
 	std::cout << "Starting to handle Request" << std::endl;
@@ -189,6 +201,7 @@ void Server::handleEvent(int fd)
 			requestQueue.pop();
 		}
 		close(fd);
+		removePollFd(fd);
 	}
 }
 
