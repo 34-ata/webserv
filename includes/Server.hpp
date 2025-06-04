@@ -16,22 +16,9 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <vector>
+#include "../includes/HttpMethods.hpp"
 
 class Request;
-
-enum HttpMethods
-{
-	INVALID = -1,
-	GET,
-	POST,
-	HEAD,
-	PUT,
-	DELETE,
-	CONNECT,
-	OPTIONS,
-	TRACE,
-	PATCH
-};
 
 class Server
 {
