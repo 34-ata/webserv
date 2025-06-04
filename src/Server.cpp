@@ -1,6 +1,7 @@
 #include "Server.hpp"
 #include "Log.hpp"
 #include "Request.hpp"
+#include "../includes/Response.hpp"
 #include <algorithm>
 #include <cstddef>
 #include <cstdio>
@@ -188,19 +189,21 @@ void Server::handleEvent(int fd)
 		{
 			buffer[bytes] = 0;
 			cache << buffer;
+			if (cache.str().find("\r\n\r\n") != std::string::npos)
+				break;
 		}
 		while (cache)
 		{
 			Request* req = emptyCache(cache);
 			requestQueue.push(req);
 		}
-		while (requestQueue.size())
+		while (!requestQueue.empty())
 		{
-			//std::cout << requestQueue.front()->getBadRequest() << std::endl;
-			//std::cout << requestQueue.front()->getData() << std::endl;
+			Request* req = requestQueue.front();
+			Response::buildAndSend(fd, req->getMethod(), "/post_test.html");
+			delete req;
 			requestQueue.pop();
 		}
-		close(fd);
 		removePollFd(fd);
 	}
 }
