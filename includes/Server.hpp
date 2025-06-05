@@ -16,9 +16,9 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <vector>
-#include "../includes/HttpMethods.hpp"
+#include "HttpMethods.hpp"
+#include "Response.hpp"
 
-class Request;
 
 class Server
 {

@@ -26,6 +26,7 @@ SRCS = $(addprefix $S/, \
 	   Tokenizer.cpp \
 	   SyntaxException.cpp \
 	   Response.cpp \
+	   Request.cpp \
 	   )
 
 OBJS = $(SRCS:$S/%.cpp=$O/%.o)
