@@ -1,5 +1,7 @@
 #include "Server.hpp"
+#include "../includes/Response.hpp"
 #include "Log.hpp"
+#include "Request.hpp"
 #include <algorithm>
 #include <cstddef>
 #include <cstdio>
@@ -187,11 +189,15 @@ void Server::handleEvent(int fd)
 		{
 			buffer[bytes] = 0;
 			cache << buffer;
-			if (cache.str().find("\r\n\r\n") != std::string::npos)
-				break;
 		}
 		while (cache)
 		{
+			cache.get();
+			if (cache.eof())
+				break;
+			else
+				cache.unget();
+			LOG("Try remove data from cache.");
 			Request* req = emptyCache(cache);
 			requestQueue.push(req);
 			break ;
@@ -221,6 +227,10 @@ Request* Server::emptyCache(std::stringstream& cache)
 		{
 			headerFound = true;
 			break;
+			if (req->getBadRequest())
+			{
+				std::cout << "BadRequest:\n" << req->getData() << std::endl;
+			}
 		}
 	}
 	if (!headerFound)
