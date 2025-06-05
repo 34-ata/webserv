@@ -3,6 +3,7 @@
 
 #include <string>
 #include "HttpMethods.hpp"
+#include "Request.hpp"
 
 class Response
 {
@@ -12,11 +13,19 @@ class Response
 	Response& operator=(const Response& other);
 	~Response();
 
-	static void buildAndSend(int fd, HttpMethods method, const std::string& path);
+	void buildAndSend(int fd, const std::string& path, Request* req);
+
+	private:
+		std::string status;
+		std::string body;
+		std::string filePath;
+		std::string contentType;
+		std::string response;
 
   private:
-	static std::string getFileContent(const std::string& filepath);
-	static std::string getContentType(const std::string& path);
+	void getFileContent();
+	void getContentType(const std::string& path);
+	void generateResponse();
 };
 
 #endif

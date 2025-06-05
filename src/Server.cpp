@@ -200,11 +200,13 @@ void Server::handleEvent(int fd)
 			LOG("Try remove data from cache.");
 			Request* req = emptyCache(cache);
 			requestQueue.push(req);
+			break ;
 		}
+		Response response;
 		while (!requestQueue.empty())
 		{
 			Request* req = requestQueue.front();
-			Response::buildAndSend(fd, req->getMethod(), "/post_test.html");
+			response.buildAndSend(fd, "/form.txt", req);
 			delete req;
 			requestQueue.pop();
 		}

@@ -20,18 +20,16 @@ class Request
 	Request& operator=(const Request&);
 	~Request();
 
-  public:
 	void fillRequest(const std::string& buffer);
 	void checkIntegrity();
 
-  public:
 	HttpMethods getMethod() const;
 	std::string getPath() const;
 	std::string getVersion() const;
 	const std::string& getData() const;
-	const std::string getBody() const;
-	std::size_t getBodyLenght() const;
-	bool getBadRequest();
+	std::string getBody() const;
+	size_t getBodyLenght() const;
+	bool getBadRequest() const;
 	void setBadRequest();
 
   private:
