@@ -197,20 +197,26 @@ void Server::handleEvent(int fd)
 				break;
 			else
 				cache.unget();
-			LOG("Try remove data from cache.");
 			Request* req = emptyCache(cache);
 			requestQueue.push(req);
-			break ;
 		}
 		Response response;
 		while (!requestQueue.empty())
 		{
 			Request* req = requestQueue.front();
+			handleRequestTypes(req);
 			response.buildAndSend(fd, "/form.txt", req);
 			delete req;
 			requestQueue.pop();
 		}
 		removePollFd(fd);
+	}
+}
+
+void Server::handleRequestTypes(Request* req)
+{
+	if (req->getMethod() == GET)
+	{
 	}
 }
 
@@ -227,10 +233,6 @@ Request* Server::emptyCache(std::stringstream& cache)
 		{
 			headerFound = true;
 			break;
-			if (req->getBadRequest())
-			{
-				std::cout << "BadRequest:\n" << req->getData() << std::endl;
-			}
 		}
 	}
 	if (!headerFound)
@@ -238,6 +240,7 @@ Request* Server::emptyCache(std::stringstream& cache)
 		req->setBadRequest();
 		return req;
 	}
+	req->checkIntegrity();
 	res.clear();
 	char bodyChar;
 	for (size_t i = 0; i < req->getBodyLenght(); i++)
@@ -246,7 +249,6 @@ Request* Server::emptyCache(std::stringstream& cache)
 		res.append(1, bodyChar);
 	}
 	req->fillRequest(res);
-	req->checkIntegrity();
 	return req;
 }
 

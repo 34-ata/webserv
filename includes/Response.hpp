@@ -1,9 +1,12 @@
 #ifndef RESPONSE_HPP
 #define RESPONSE_HPP
 
+#include <cstddef>
+#include <map>
 #include <string>
 #include "HttpMethods.hpp"
 #include "Request.hpp"
+#include "ResponseCodes.hpp"
 
 class Response
 {
@@ -15,17 +18,22 @@ class Response
 
 	void buildAndSend(int fd, const std::string& path, Request* req);
 
+  public:
+	Response& status(ResponseCodes status);
+	Response& htppVersion(std::string htppVersion);
+	Response& header(std::string key, std::string value);
+	Response& body(std::string body);
+	std::string build();
+
 	private:
-		std::string status;
-		std::string body;
-		std::string filePath;
-		std::string contentType;
-		std::string response;
+		ResponseCodes m_status;
+		std::string m_htppVersion;
+		std::map<std::string, std::string> m_headers;
+		std::string m_body;
 
   private:
-	void getFileContent();
-	void getContentType(const std::string& path);
-	void generateResponse();
+	std::string getFileContent(std::string filePath);
+	std::string getContentType(const std::string& path);
 };
 
 #endif

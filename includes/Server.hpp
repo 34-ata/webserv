@@ -17,6 +17,7 @@
 #include <unistd.h>
 #include <vector>
 #include "HttpMethods.hpp"
+#include "Request.hpp"
 #include "Response.hpp"
 
 
@@ -52,6 +53,7 @@ class Server
 
 	bool ownsFd(int fd) const;
 	void handleEvent(int fd);
+	void handleRequestTypes(Request* req);
 	std::vector< struct pollfd >& getPollFds();
 	Request *emptyCache(std::stringstream& cache);
 

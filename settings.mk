@@ -18,16 +18,16 @@ B = ./bin
 
 D = ./dep
 
-SRCS = $(addprefix $S/, \
-	   main.cpp \
-	   Socket.cpp \
-	   Server.cpp \
-	   WebServer.cpp \
-	   Tokenizer.cpp \
-	   SyntaxException.cpp \
-	   Response.cpp \
-	   Request.cpp \
-	   )
+FILES = main \
+		Socket \
+		Server \
+		WebServer \
+		Tokenizer \
+		SyntaxException \
+		Response \
+		Request \
+
+SRCS = $(addsuffix .cpp, $(addprefix $S/, $(FILES)))
 
 OBJS = $(SRCS:$S/%.cpp=$O/%.o)
 

@@ -14,15 +14,15 @@
 struct ConfigDirective
 {
 	std::string directiveName;
-	std::vector<std::string> args;
+	std::vector< std::string > args;
 };
 
 struct ConfigBlock
 {
 	std::string name;
-	std::vector<std::string> args;
-	std::vector<ConfigBlock*> childs;
-	std::vector<ConfigDirective> directives;
+	std::vector< std::string > args;
+	std::vector< ConfigBlock* > childs;
+	std::vector< ConfigDirective > directives;
 	ConfigBlock* parent;
 
 	~ConfigBlock()
@@ -35,7 +35,7 @@ struct ConfigBlock
 class Tokenizer
 {
   public:
-	typedef std::list<std::string>::const_iterator const_iterator;
+	typedef std::list< std::string >::const_iterator const_iterator;
 
   public:
 	Tokenizer(std::istream& input);
@@ -44,11 +44,11 @@ class Tokenizer
   public:
 	std::string Next();
 	void PrintTokens() const;
-	const std::list<std::string>& GetTokens() const;
+	const std::list< std::string >& GetTokens() const;
 
   private:
 	std::istream& m_input;
-	std::list<std::string> m_tokens;
+	std::list< std::string > m_tokens;
 	char m_char;
 
   private:

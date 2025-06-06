@@ -1,4 +1,4 @@
-#include "../includes/WebServer.hpp"
+#include "WebServer.hpp"
 #include "SyntaxException.hpp"
 #include "Tokenizer.hpp"
 #include <fstream>
