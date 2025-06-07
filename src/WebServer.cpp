@@ -1,26 +1,32 @@
 #include "WebServer.hpp"
+#include "Server.hpp"
 #include "SyntaxException.hpp"
 #include "Tokenizer.hpp"
+#include <cstring>
 #include <fstream>
 #include <iostream>
 #include <list>
 #include <sstream>
+#include <strings.h>
+#include <sys/epoll.h>
+#include <sys/socket.h>
 
-WebServer::WebServer() {
+WebServer::WebServer()
+{
 	m_root.parent = NULL;
-	m_root.name = "root";
+	m_root.name	  = "root";
 }
 
-WebServer::WebServer(const WebServer& other) {
-	*this = other;
-}
+WebServer::WebServer(const WebServer& other) { *this = other; }
 
-WebServer::~WebServer() {
+WebServer::~WebServer()
+{
 	for (size_t i = 0; i < m_servers.size(); ++i)
 		delete m_servers[i];
 }
 
-WebServer& WebServer::operator=(const WebServer& other) {
+WebServer& WebServer::operator=(const WebServer& other)
+{
 	(void)other;
 	return *this;
 }
@@ -70,11 +76,12 @@ void WebServer::Run()
 {
 	while (true)
 	{
-		std::vector<struct pollfd> fds;
+		std::vector< struct pollfd > fds;
 
 		for (size_t i = 0; i < m_servers.size(); ++i)
 		{
-			const std::vector<struct pollfd>& serverFds = m_servers[i]->getPollFds();
+			const std::vector< struct pollfd >& serverFds =
+				m_servers[i]->getPollFds();
 			fds.insert(fds.end(), serverFds.begin(), serverFds.end());
 		}
 
@@ -113,20 +120,23 @@ void WebServer::Run()
 	}
 }
 
-void ParseLocation(ConfigBlock* server, std::string locationPath,
-				   Tokenizer::const_iterator start,
-				   Tokenizer::const_iterator end) {
+static void ParseLocation(ConfigBlock* server, std::string locationPath,
+						  Tokenizer::const_iterator start,
+						  Tokenizer::const_iterator end)
+{
 	ConfigDirective temp;
 	ConfigBlock* location = new ConfigBlock();
 	server->childs.push_back(location);
 
 	location->name = "location";
 	location->args.push_back(locationPath);
-	for (; start != end; start++) {
+	for (; start != end; start++)
+	{
 		temp.directiveName = *start;
 		temp.args.clear();
 		start++;
-		while (*start != ";") {
+		while (*start != ";")
+		{
 			temp.args.push_back(*start);
 			start++;
 		}
@@ -134,16 +144,19 @@ void ParseLocation(ConfigBlock* server, std::string locationPath,
 	}
 }
 
-void WebServer::ParseServer(std::list<std::string>::const_iterator start,
-							   std::list<std::string>::const_iterator end) {
+void WebServer::ParseServer(std::list< std::string >::const_iterator start,
+							std::list< std::string >::const_iterator end)
+{
 	ConfigBlock* server = new ConfigBlock();
 	ConfigDirective temp;
 	std::string locationPath;
 	m_root.childs.push_back(server);
 	server->name = "server";
 
-	for (; start != end; start++) {
-		if (*start == "location") {
+	for (; start != end; start++)
+	{
+		if (*start == "location")
+		{
 			start++;
 			if (*start == ";" || *start == "{" || *start == "}")
 				throw SyntaxException(UNEXPECTED(*start, "VALUE"));
@@ -156,11 +169,14 @@ void WebServer::ParseServer(std::list<std::string>::const_iterator start,
 			for (; *start != "}"; start++)
 				;
 			ParseLocation(server, locationPath, locationStart, start);
-		} else {
+		}
+		else
+		{
 			temp.directiveName = *start;
 			temp.args.clear();
 			start++;
-			while (*start != ";") {
+			while (*start != ";")
+			{
 				temp.args.push_back(*start);
 				start++;
 			}
@@ -169,10 +185,12 @@ void WebServer::ParseServer(std::list<std::string>::const_iterator start,
 	}
 }
 
-void CheckScopes(const Tokenizer& tokenizer) {
-	int indentLevel = 0;
+static void CheckScopes(const Tokenizer& tokenizer)
+{
+	int indentLevel				 = 0;
 	Tokenizer::const_iterator it = tokenizer.GetTokens().begin();
-	for (; it != tokenizer.GetTokens().end(); it++) {
+	for (; it != tokenizer.GetTokens().end(); it++)
+	{
 		if (*it == "{")
 			indentLevel++;
 		if (*it == "}")
@@ -182,19 +200,23 @@ void CheckScopes(const Tokenizer& tokenizer) {
 		throw SyntaxException("Unclosed Scope");
 }
 
-void WebServer::Parse(std::ifstream& fileIn) {
+void WebServer::Parse(std::ifstream& fileIn)
+{
 	Tokenizer tokenizer(fileIn);
 	CheckScopes(tokenizer);
 	Tokenizer::const_iterator it = tokenizer.GetTokens().begin();
-	while (it != tokenizer.GetTokens().end()) {
-		if (*it == "server") {
+	while (it != tokenizer.GetTokens().end())
+	{
+		if (*it == "server")
+		{
 			int indentLevel = 1;
 			it++;
 			if (*it != "{")
 				throw SyntaxException(UNEXPECTED(*it, "{"));
 			it++;
 			Tokenizer::const_iterator start = it;
-			while (it != tokenizer.GetTokens().end()) {
+			while (it != tokenizer.GetTokens().end())
+			{
 				if (*it == "{")
 					indentLevel++;
 				if (*it == "}")
@@ -204,7 +226,8 @@ void WebServer::Parse(std::ifstream& fileIn) {
 				it++;
 			}
 			ParseServer(start, it);
-		} else
+		}
+		else
 			throw SyntaxException(UNEXPECTED(*it, "server"));
 		if (it == tokenizer.GetTokens().end())
 			throw SyntaxException("Unexpected EOF");

@@ -15,6 +15,8 @@
 #include <queue>
 #include <sstream>
 #include <string>
+#include <sys/socket.h>
+#include <sys/stat.h>
 #include <unistd.h>
 #include <vector>
 
@@ -191,11 +193,10 @@ void Server::fillCache(std::stringstream& cache, int fd)
 {
 	char buffer[1024];
 	memset(&buffer, 0, 1024);
-	while (int bytes = recv(fd, buffer, sizeof(buffer) - 1, 0))
+	while (int bytes = recv(fd, buffer, sizeof(buffer) - 1, 0) > 0)
 	{
 		buffer[bytes] = 0;
 		cache << buffer;
-		break;
 	}
 }
 
@@ -251,11 +252,13 @@ void Server::handleEvent(int fd)
 	connectIfNotConnected(fd);
 	fillCache(cache, fd);
 	emptyCache(cache);
-	Response response;
 	while (!requestQueue.empty())
 	{
 		Request* req = requestQueue.front();
 		handleRequestTypes(req);
+		LOG(m_response);
+		send(fd, m_response.c_str(), m_response.size(), 0);
+		close(fd);
 		delete req;
 		requestQueue.pop();
 	}
@@ -268,8 +271,7 @@ void Server::handleGetRequest(Request* req)
 	std::string filePath;
 	LOG("Started Handling GET Request");
 	filePath = req->getPath();
-	int file = open(filePath.c_str(), O_RDONLY);
-	if (file == -1)
+	if (access(filePath.c_str(), F_OK) != 0)
 	{
 		filePath   = "./www/404.html";
 		m_response = response.status(NOT_FOUND)
@@ -278,18 +280,15 @@ void Server::handleGetRequest(Request* req)
 						 .header("Content-Type", getContentType(filePath))
 						 .build();
 		LOG(m_response);
+		return;
 	}
-	else
-	{
-		close(file);
-		m_response = response.status(OK)
-						 .htppVersion(HTTP_VERSION)
-						 .body(getFileContent(filePath))
-						 .header("Content-Type", getContentType(filePath))
-						 .build();
-		LOG(getFileContent(filePath));
-		LOG(m_response);
-	}
+	m_response = response.status(OK)
+					 .htppVersion(HTTP_VERSION)
+					 .body(getFileContent(filePath))
+					 .header("Content-Type", getContentType(filePath))
+					 .build();
+	LOG(getFileContent(filePath));
+	LOG(m_response);
 }
 
 void Server::handlePostRequest(Request* req)
