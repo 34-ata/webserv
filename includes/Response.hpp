@@ -16,7 +16,7 @@ class Response
 	Response& operator=(const Response& other);
 	~Response();
 
-	void buildAndSend(int fd, const std::string& path, Request* req);
+	void buildAndSend(int fd, Request* req);
 
   public:
 	Response& status(ResponseCodes status);

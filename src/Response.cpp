@@ -73,29 +73,29 @@ std::string Response::build()
 	if (m_body.length() != 0)
 	{
 		size << m_body.length();
-		m_headers["Content-Lenght"] = size.str();
+		m_headers["Content-Length"] = size.str();
 	}
 	response << m_htppVersion << " " << m_status << " "
 			 << mapCodeToStr(m_status) << "\r\n";
 	for (std::map< std::string, std::string >::iterator it = m_headers.begin();
 		 it != m_headers.end(); it++)
 		response << it->first << ": " << it->second << "\r\n";
-	response << "\r\n"; // end of response header
+	response << "\r\n";
 	response << m_body;
 	return response.str();
 }
 
-void Response::buildAndSend(int fd, const std::string& path, Request* req)
+void Response::buildAndSend(int fd, Request* req)
 {
 	Response response;
 	std::string resStr;
 	std::string filePath;
-	getContentType(path);
+	getContentType(req->getPath());
 
 	if (req->getMethod() == GET)
 	{
 		LOG("Started Handling GET Request");
-		filePath = "./www" + path;
+		filePath = "./www" + req->getPath();
 		int file = open(filePath.c_str(), O_RDONLY);
 		if (file == -1)
 		{
@@ -121,7 +121,7 @@ void Response::buildAndSend(int fd, const std::string& path, Request* req)
 	}
 	else if (req->getMethod() == POST)
 	{
-		filePath = "./www" + path;
+		filePath = "./www" + req->getPath();
 
 		int file = open(filePath.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
 		if (file == -1)
@@ -134,8 +134,7 @@ void Response::buildAndSend(int fd, const std::string& path, Request* req)
 		{
 			write(file, req->getBody().c_str(), req->getBody().size());
 			close(file);
-			filePath = filePath; // hedef dosyanın path'i body yerine
-								 // gönderilsin istemiyoruz
+			filePath = filePath;
 			std::string resStr = response.status(CREATED)
 									 .htppVersion(HTTP_VERSION)
 									 .header("Content-Type", "text/plain")

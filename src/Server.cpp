@@ -189,6 +189,7 @@ void Server::handleEvent(int fd)
 		{
 			buffer[bytes] = 0;
 			cache << buffer;
+			break ;
 		}
 		while (cache)
 		{
@@ -205,7 +206,7 @@ void Server::handleEvent(int fd)
 		{
 			Request* req = requestQueue.front();
 			handleRequestTypes(req);
-			response.buildAndSend(fd, "/form.txt", req);
+			response.buildAndSend(fd, req);
 			delete req;
 			requestQueue.pop();
 		}
