@@ -61,7 +61,7 @@ bool WebServer::Init(const std::string& configFile)
 	m_servers.push_back(new Server(conf3));
 
 	for (size_t i = 0; i < m_servers.size(); ++i)
-		m_servers[i]->Start();
+		m_servers[i]->start();
 
 	return true;
 }

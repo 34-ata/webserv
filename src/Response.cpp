@@ -85,80 +85,7 @@ std::string Response::build()
 	return response.str();
 }
 
-void Response::buildAndSend(int fd, Request* req)
-{
-	Response response;
-	std::string resStr;
-	std::string filePath;
-	getContentType(req->getPath());
-
-	if (req->getMethod() == GET)
-	{
-		LOG("Started Handling GET Request");
-		filePath = "./www" + req->getPath();
-		int file = open(filePath.c_str(), O_RDONLY);
-		if (file == -1)
-		{
-			filePath = "./www/404.html";
-			resStr	 = status(NOT_FOUND)
-						 .htppVersion(HTTP_VERSION)
-						 .body(getFileContent(filePath))
-						 .header("Content-Type", getContentType(filePath))
-						 .build();
-			LOG(resStr);
-		}
-		else
-		{
-			close(file);
-			resStr = status(OK)
-						 .htppVersion(HTTP_VERSION)
-						 .body(getFileContent(filePath))
-						 .header("Content-Type", getContentType(filePath))
-						 .build();
-			LOG(getFileContent(filePath));
-			LOG(resStr);
-		}
-	}
-	else if (req->getMethod() == POST)
-	{
-		filePath = "./www" + req->getPath();
-
-		int file = open(filePath.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
-		if (file == -1)
-		{
-			filePath = "./www/500.html";
-			resStr =
-				response.htppVersion(HTTP_VERSION).status(INT_SERV_ERR).build();
-		}
-		else
-		{
-			write(file, req->getBody().c_str(), req->getBody().size());
-			close(file);
-			filePath = filePath;
-			std::string resStr = response.status(CREATED)
-									 .htppVersion(HTTP_VERSION)
-									 .header("Content-Type", "text/plain")
-									 .body("File uploaded successfully.\n")
-									 .build();
-			send(fd, resStr.c_str(), resStr.size(), 0);
-			close(fd);
-			return;
-		}
-	}
-	if (req->getMethod() == INVALID)
-	{
-		filePath = "./www/405.html";
-		resStr	 = response.htppVersion(HTTP_VERSION)
-					 .status(METH_NOT_ALLOW)
-					 .header("Content-Type", getContentType(filePath))
-					 .body(getFileContent(filePath))
-					 .build();
-	}
-	send(fd, resStr.c_str(), resStr.size(), 0);
-	close(fd);
-}
-
-std::string Response::getFileContent(std::string filePath)
+std::string getFileContent(std::string filePath)
 {
 	std::string fileContent;
 	int file = open(filePath.c_str(), O_RDONLY);
@@ -175,7 +102,7 @@ std::string Response::getFileContent(std::string filePath)
 	return fileContent;
 }
 
-std::string Response::getContentType(const std::string& path)
+std::string getContentType(const std::string& path)
 {
 	if (path.find(".html") != std::string::npos)
 		return "text/html";

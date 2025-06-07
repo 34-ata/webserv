@@ -1,6 +1,9 @@
 #ifndef SERVER_HPP
 #define SERVER_HPP
 
+#include "HttpMethods.hpp"
+#include "Request.hpp"
+#include "Response.hpp"
 #include <arpa/inet.h>
 #include <cstddef>
 #include <cstdio>
@@ -16,10 +19,6 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <vector>
-#include "HttpMethods.hpp"
-#include "Request.hpp"
-#include "Response.hpp"
-
 
 class Server
 {
@@ -49,13 +48,21 @@ class Server
 	Server(const ServerConfig& config);
 	~Server();
 
-	void Start();
+	void start();
 
-	bool ownsFd(int fd) const;
 	void handleEvent(int fd);
 	void handleRequestTypes(Request* req);
+	void handleGetRequest(Request* req);
+	void handlePostRequest(Request* req);
+	void handleDeleteRequest(Request* req);
+	void handleInvalidRequest();
+
+	bool ownsFd(int fd) const;
 	std::vector< struct pollfd >& getPollFds();
-	Request *emptyCache(std::stringstream& cache);
+	void connectIfNotConnected(int fd);
+	void fillCache(std::stringstream& cache, int fd);
+	Request* deserializeRequest(std::stringstream& cache);
+	void emptyCache(std::stringstream& cache);
 
 	std::vector< std::pair< std::string, std::string > > getListens() const;
 	std::string getServerName() const;
@@ -71,6 +78,7 @@ class Server
 	std::vector< struct pollfd > pollFds;
 	std::vector< int > listenerFds;
 	std::queue< Request* > requestQueue;
+	std::string m_response;
 };
 
 Server* findMatchingServer(const std::string& ip, int port,

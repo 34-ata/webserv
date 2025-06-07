@@ -1,17 +1,22 @@
 #include "Server.hpp"
 #include "../includes/Response.hpp"
+#include "HttpMethods.hpp"
+#include "HttpVersion.hpp"
 #include "Log.hpp"
 #include "Request.hpp"
+#include "ResponseCodes.hpp"
 #include <algorithm>
 #include <cstddef>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
+#include <map>
 #include <queue>
 #include <sstream>
 #include <string>
 #include <unistd.h>
+#include <vector>
 
 Server::Server(const Server::ServerConfig& config)
 {
@@ -82,7 +87,7 @@ Server* findMatchingServer(const std::string& ip, int port,
 	return servers[0];
 }
 
-void Server::Start()
+void Server::start()
 {
 	for (size_t i = 0; i < this->m_listens.size(); ++i)
 	{
@@ -162,12 +167,12 @@ void Server::removePollFd(int fd)
 	}
 }
 
-void Server::handleEvent(int fd)
+void Server::connectIfNotConnected(int fd)
 {
-	std::cout << "Starting to handle Request" << std::endl;
 	if (std::find(listenerFds.begin(), listenerFds.end(), fd)
 		!= listenerFds.end())
 	{
+		LOG("Added Socket to listenerFds.");
 		struct sockaddr_in clientAddr;
 		socklen_t len = sizeof(clientAddr);
 		int clientFd  = accept(fd, (struct sockaddr*)&clientAddr, &len);
@@ -180,48 +185,35 @@ void Server::handleEvent(int fd)
 			pollFds.push_back(clientPoll);
 		}
 	}
-	else
-	{
-		std::stringstream cache;
-		char buffer[1024];
-		memset(&buffer, 0, 1024);
-		while (int bytes = recv(fd, buffer, sizeof(buffer) - 1, 0))
-		{
-			buffer[bytes] = 0;
-			cache << buffer;
-			break ;
-		}
-		while (cache)
-		{
-			cache.get();
-			if (cache.eof())
-				break;
-			else
-				cache.unget();
-			Request* req = emptyCache(cache);
-			requestQueue.push(req);
-		}
-		Response response;
-		while (!requestQueue.empty())
-		{
-			Request* req = requestQueue.front();
-			handleRequestTypes(req);
-			response.buildAndSend(fd, req);
-			delete req;
-			requestQueue.pop();
-		}
-		removePollFd(fd);
-	}
 }
 
-void Server::handleRequestTypes(Request* req)
+void Server::fillCache(std::stringstream& cache, int fd)
 {
-	if (req->getMethod() == GET)
+	char buffer[1024];
+	memset(&buffer, 0, 1024);
+	while (int bytes = recv(fd, buffer, sizeof(buffer) - 1, 0))
 	{
+		buffer[bytes] = 0;
+		cache << buffer;
+		break;
 	}
 }
 
-Request* Server::emptyCache(std::stringstream& cache)
+void Server::emptyCache(std::stringstream& cache)
+{
+	while (cache)
+	{
+		cache.get();
+		if (cache.eof())
+			break;
+		else
+			cache.unget();
+		Request* req = deserializeRequest(cache);
+		requestQueue.push(req);
+	}
+}
+
+Request* Server::deserializeRequest(std::stringstream& cache)
 {
 	Request* req	 = new Request();
 	bool headerFound = false;
@@ -253,11 +245,127 @@ Request* Server::emptyCache(std::stringstream& cache)
 	return req;
 }
 
-std::vector< struct pollfd >& Server::getPollFds() { return pollFds; }
+void Server::handleEvent(int fd)
+{
+	std::stringstream cache;
+	connectIfNotConnected(fd);
+	fillCache(cache, fd);
+	emptyCache(cache);
+	Response response;
+	while (!requestQueue.empty())
+	{
+		Request* req = requestQueue.front();
+		handleRequestTypes(req);
+		delete req;
+		requestQueue.pop();
+	}
+	removePollFd(fd);
+}
+
+void Server::handleGetRequest(Request* req)
+{
+	Response response;
+	std::string filePath;
+	LOG("Started Handling GET Request");
+	filePath = req->getPath();
+	int file = open(filePath.c_str(), O_RDONLY);
+	if (file == -1)
+	{
+		filePath   = "./www/404.html";
+		m_response = response.status(NOT_FOUND)
+						 .htppVersion(HTTP_VERSION)
+						 .body(getFileContent(filePath))
+						 .header("Content-Type", getContentType(filePath))
+						 .build();
+		LOG(m_response);
+	}
+	else
+	{
+		close(file);
+		m_response = response.status(OK)
+						 .htppVersion(HTTP_VERSION)
+						 .body(getFileContent(filePath))
+						 .header("Content-Type", getContentType(filePath))
+						 .build();
+		LOG(getFileContent(filePath));
+		LOG(m_response);
+	}
+}
+
+void Server::handlePostRequest(Request* req)
+{
+	Response response;
+	std::string filePath;
+	filePath = req->getPath();
+
+	int file = open(filePath.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
+	if (file == -1)
+	{
+		filePath = "./www/500.html";
+		m_response =
+			response.htppVersion(HTTP_VERSION).status(INT_SERV_ERR).build();
+		return;
+	}
+	write(file, req->getBody().c_str(), req->getBody().size());
+	close(file);
+	m_response = response.status(CREATED)
+					 .htppVersion(HTTP_VERSION)
+					 .header("Content-Type", "text/plain")
+					 .body("File uploaded successfully.\n")
+					 .build();
+}
+
+void Server::handleDeleteRequest(Request* req)
+{
+	Response response;
+	std::string filePath;
+	filePath = req->getPath();
+	int res	 = std::remove(filePath.c_str());
+	if (res == 0)
+		m_response = response.htppVersion(HTTP_VERSION).status(OK).build();
+	else
+		m_response =
+			response.htppVersion(HTTP_VERSION).status(NOT_FOUND).build();
+}
+
+void Server::handleInvalidRequest()
+{
+	Response response;
+	std::string filePath;
+	filePath   = "./www/405.html";
+	m_response = response.htppVersion(HTTP_VERSION)
+					 .status(METH_NOT_ALLOW)
+					 .header("Content-Type", getContentType(filePath))
+					 .body(getFileContent(filePath))
+					 .build();
+}
+
+void Server::handleRequestTypes(Request* req)
+{
+	if (req->getBadRequest())
+		m_response =
+			Response().htppVersion(HTTP_VERSION).status(BAD_REQ).build();
+	switch (req->getMethod())
+	{
+	case GET:
+		handleGetRequest(req);
+		break;
+	case POST:
+		handlePostRequest(req);
+		break;
+	case DELETE:
+		handleDeleteRequest(req);
+		break;
+	case INVALID:
+		handleInvalidRequest();
+	}
+}
+
+std::string Server::getServerName() const { return m_serverName; }
 
 std::vector< std::pair< std::string, std::string > > Server::getListens() const
 {
 	return m_listens;
 }
 
-std::string Server::getServerName() const { return m_serverName; }
+std::vector< struct pollfd >& Server::getPollFds() { return pollFds; }
