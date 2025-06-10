@@ -16,6 +16,8 @@ const std::string& Request::getData() const { return m_data; }
 std::string Request::getBody() const
 {
 	size_t headerEnd = m_data.find("\r\n\r\n");
+	if (headerEnd == std::string::npos)
+		return std::string();
 	return m_data.substr(headerEnd + 4, m_data.size() - headerEnd);
 }
 

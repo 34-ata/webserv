@@ -56,13 +56,13 @@ class Server
 	void handlePostRequest(Request* req);
 	void handleDeleteRequest(Request* req);
 	void handleInvalidRequest();
+	void getHeader(Request *req);
 
 	bool ownsFd(int fd) const;
 	std::vector< struct pollfd >& getPollFds();
 	void connectIfNotConnected(int fd);
-	void fillCache(std::stringstream& cache, int fd);
-	Request* deserializeRequest(std::stringstream& cache);
-	void emptyCache(std::stringstream& cache);
+	void fillCache(int fd);
+	Request* deserializeRequest(Request* req);
 
 	std::vector< std::pair< std::string, std::string > > getListens() const;
 	std::string getServerName() const;
@@ -79,6 +79,7 @@ class Server
 	std::vector< int > listenerFds;
 	std::queue< Request* > requestQueue;
 	std::string m_response;
+	std::stringstream cache;
 };
 
 Server* findMatchingServer(const std::string& ip, int port,

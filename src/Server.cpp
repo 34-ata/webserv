@@ -189,34 +189,33 @@ void Server::connectIfNotConnected(int fd)
 	}
 }
 
-void Server::fillCache(std::stringstream& cache, int fd)
+void Server::fillCache(int fd)
 {
 	char buffer[1024];
 	memset(&buffer, 0, 1024);
-	while (int bytes = recv(fd, buffer, sizeof(buffer) - 1, 0) > 0)
+	int bytes = recv(fd, buffer, sizeof(buffer) - 1, 0);
+	if (bytes > 0)
 	{
 		buffer[bytes] = 0;
 		cache << buffer;
 	}
 }
 
-void Server::emptyCache(std::stringstream& cache)
+Request* Server::deserializeRequest(Request* req)
 {
-	while (cache)
+	std::string res;
+	char bodyChar;
+	for (size_t i = 0; i < req->getBodyLenght(); i++)
 	{
-		cache.get();
-		if (cache.eof())
-			break;
-		else
-			cache.unget();
-		Request* req = deserializeRequest(cache);
-		requestQueue.push(req);
+		cache.get(bodyChar);
+		res.append(1, bodyChar);
 	}
+	req->fillRequest(res);
+	return req;
 }
 
-Request* Server::deserializeRequest(std::stringstream& cache)
+void Server::getHeader(Request* req)
 {
-	Request* req	 = new Request();
 	bool headerFound = false;
 	std::string res;
 	while (std::getline(cache, res))
@@ -230,39 +229,37 @@ Request* Server::deserializeRequest(std::stringstream& cache)
 		}
 	}
 	if (!headerFound)
-	{
 		req->setBadRequest();
-		return req;
-	}
 	req->checkIntegrity();
 	res.clear();
-	char bodyChar;
-	for (size_t i = 0; i < req->getBodyLenght(); i++)
-	{
-		cache.get(bodyChar);
-		res.append(1, bodyChar);
-	}
-	req->fillRequest(res);
-	return req;
+
 }
 
 void Server::handleEvent(int fd)
 {
-	std::stringstream cache;
+	cache.str(std::string());
+	static Request* req = NULL;
 	connectIfNotConnected(fd);
-	fillCache(cache, fd);
-	emptyCache(cache);
-	while (!requestQueue.empty())
+	fillCache(fd);
+	if (cache.str().find("\r\n\r\n") != std::string::npos || req != NULL)
 	{
-		Request* req = requestQueue.front();
-		handleRequestTypes(req);
-		LOG(m_response);
-		send(fd, m_response.c_str(), m_response.size(), 0);
-		close(fd);
-		delete req;
-		requestQueue.pop();
+		if (req == NULL)
+		{
+			req = new Request();
+			getHeader(req);
+		}
+		deserializeRequest(req);
+		if (req->getBodyLenght() == req->getBody().size())
+		{
+			handleRequestTypes(req);
+			send(fd, m_response.c_str(), m_response.size(), 0);
+			LOG("FD: " << fd);
+			close(fd);
+			delete req;
+			req = NULL;
+			removePollFd(fd);
+		}
 	}
-	removePollFd(fd);
 }
 
 void Server::handleGetRequest(Request* req)
@@ -270,7 +267,9 @@ void Server::handleGetRequest(Request* req)
 	Response response;
 	std::string filePath;
 	LOG("Started Handling GET Request");
-	filePath = req->getPath();
+	char cwd[200];
+	getcwd(cwd, 200);
+	filePath = std::string(cwd) + req->getPath();
 	if (access(filePath.c_str(), F_OK) != 0)
 	{
 		filePath   = "./www/404.html";
@@ -279,7 +278,6 @@ void Server::handleGetRequest(Request* req)
 						 .body(getFileContent(filePath))
 						 .header("Content-Type", getContentType(filePath))
 						 .build();
-		LOG(m_response);
 		return;
 	}
 	m_response = response.status(OK)
@@ -287,8 +285,6 @@ void Server::handleGetRequest(Request* req)
 					 .body(getFileContent(filePath))
 					 .header("Content-Type", getContentType(filePath))
 					 .build();
-	LOG(getFileContent(filePath));
-	LOG(m_response);
 }
 
 void Server::handlePostRequest(Request* req)
