@@ -23,9 +23,9 @@ std::string Request::getBody() const
 
 std::size_t Request::getBodyLenght() const
 {
-	std::string contentLenght = "Content-Lenght";
-	if (m_headers.find(contentLenght) != m_headers.end())
-		return std::atoi(m_headers.at(contentLenght).c_str());
+	std::string contentLength = "Content-Length";
+	if (m_headers.find(contentLength) != m_headers.end())
+		return std::atoi(m_headers.at(contentLength).c_str());
 	return 0;
 }
 
@@ -87,7 +87,7 @@ void Request::checkHeaders(std::stringstream& dataStream)
 		size_t halfPos = line.find(':');
 		if (halfPos == std::string::npos)
 		{
-			m_badRequest = true;
+			m_badRequest = false;
 			return;
 		}
 		key = line.substr(0, halfPos);
@@ -104,6 +104,7 @@ void Request::checkHeaders(std::stringstream& dataStream)
 		}
 		m_headers[key] = value;
 	}
+
 }
 
 void Request::checkIntegrity()

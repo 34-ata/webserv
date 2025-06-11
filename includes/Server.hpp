@@ -29,8 +29,19 @@ class Server
 		std::string rootPath;
 		std::string indexFile;
 		bool autoIndex;
-		std::vector< HttpMethods > allowedMethods;
+		std::vector<HttpMethods> allowedMethods;
+
+		bool hasRedirect;
+		std::string redirectTo;
+		int redirectCode;
+
+		bool uploadEnabled;
+		std::string uploadPath;
+
+		std::string cgiExtension;
+		std::string cgiExecutablePath;
 	};
+
 
 	struct ServerConfig
 	{
@@ -52,9 +63,9 @@ class Server
 
 	void handleEvent(int fd);
 	void handleRequestTypes(Request* req);
-	void handleGetRequest(Request* req);
-	void handlePostRequest(Request* req);
-	void handleDeleteRequest(Request* req);
+	void handleGetRequest(Request* req, const Location& loc);
+	void handlePostRequest(Request* req, const Location& loc);
+	void handleDeleteRequest(Request* req, const Location& loc);
 	void handleInvalidRequest();
 	void getHeader(Request *req);
 
@@ -64,6 +75,9 @@ class Server
 	void fillCache(int fd);
 	Request* deserializeRequest(Request* req);
 
+	const Server::Location* matchLocation(const std::string& uri) const;
+	std::string generateDirectoryListing(const std::string& path, const std::string& uri);
+	std::string executeCgi(const std::string& scriptPath, const std::string& interpreter);
 	std::vector< std::pair< std::string, std::string > > getListens() const;
 	std::string getServerName() const;
 	void removePollFd(int fd);

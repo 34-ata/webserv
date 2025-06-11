@@ -1,5 +1,4 @@
 #include "WebServer.hpp"
-#include "Server.hpp"
 #include "SyntaxException.hpp"
 #include "Tokenizer.hpp"
 #include <cstring>
@@ -50,17 +49,72 @@ bool WebServer::Init(const std::string& configFile)
 	}
 	fileIn.close();
 
+	Server::Location loc1;
+	loc1.locUrl = "/images";
+	loc1.rootPath = "./www/images";
+	loc1.indexFile = "index.html";
+	loc1.autoIndex = true;
+	loc1.allowedMethods.push_back(GET);
+	loc1.allowedMethods.push_back(POST);
+	loc1.allowedMethods.push_back(DELETE);
+	loc1.hasRedirect = false;
+	loc1.uploadEnabled = false;
+
+	Server::Location loc2;
+	loc2.locUrl = "/old-page";
+	loc2.rootPath = "";
+	loc2.indexFile = "";
+	loc2.autoIndex = false;
+	loc2.allowedMethods.push_back(GET);
+	loc2.hasRedirect = true;
+	loc2.redirectTo = "/new-page";
+	loc2.redirectCode = 301;
+	loc2.uploadEnabled = false;
+
+	Server::Location loc3;
+	loc3.locUrl = "/upload";
+	loc3.rootPath = "./www/uploads";
+	loc3.indexFile = "";
+	loc3.autoIndex = false;
+	loc3.allowedMethods.push_back(POST);
+	loc3.uploadEnabled = true;
+	loc3.uploadPath = "./www/uploads";
+	loc3.hasRedirect = false;
+
+	Server::Location loc4;
+	loc4.locUrl = "/cgi-bin";
+	loc4.rootPath = "./www/cgi-bin";
+	loc4.indexFile = "";
+	loc4.autoIndex = false;
+	loc4.allowedMethods.push_back(GET);
+	loc4.cgiExtension = ".py";
+	loc4.cgiExecutablePath = "/usr/bin/python3";
+	loc4.hasRedirect = false;
+	loc4.uploadEnabled = false;
+
 	Server::ServerConfig conf1;
+	conf1.locations.push_back(loc1);
+	conf1.locations.push_back(loc2);
+	conf1.locations.push_back(loc3);
+	conf1.locations.push_back(loc4);
 	conf1.serverName = "loopback_server";
 	conf1.listens.push_back(std::make_pair("127.0.0.1", "8080"));
 
 	Server::ServerConfig conf2;
+	conf2.locations.push_back(loc1);
+	conf2.locations.push_back(loc2);
+	conf2.locations.push_back(loc3);
+	conf2.locations.push_back(loc4);
 	conf2.serverName = "anyip_server";
 	conf2.listens.push_back(std::make_pair("0.0.0.0", "9080"));
 
 	Server::ServerConfig conf3;
+	conf3.locations.push_back(loc1);
+	conf3.locations.push_back(loc2);
+	conf3.locations.push_back(loc3);
+	conf3.locations.push_back(loc4);
 	conf3.serverName = "localnet_server";
-	conf3.listens.push_back(std::make_pair("10.11.32.1", "4242"));
+	conf3.listens.push_back(std::make_pair("192.168.1.101", "4242"));
 
 	m_servers.push_back(new Server(conf1));
 	m_servers.push_back(new Server(conf2));
