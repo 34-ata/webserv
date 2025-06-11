@@ -248,7 +248,7 @@ void Server::handleEvent(int fd)
 		}
 		deserializeRequest(req);
 
-		if (req->getMethod() == GET || req->getBodyLenght() == req->getBody().size())
+		if (req->getBodyLenght() == req->getBody().size())
 		{
 			handleRequestTypes(req);
 			send(fd, m_response.c_str(), m_response.size(), 0);
@@ -554,6 +554,7 @@ void Server::handleRequestTypes(Request* req)
 {
 	if (req->getBadRequest())
 	{
+		LOG("\nMETHOD: " << req->getMethod() << "\nBAD_REQ: " << req->getData());
 		m_response = Response()
 			.htppVersion(HTTP_VERSION)
 			.status(BAD_REQ)

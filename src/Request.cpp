@@ -87,7 +87,7 @@ void Request::checkHeaders(std::stringstream& dataStream)
 		std::string key, value;
 		size_t halfPos = line.find(':');
 		if (line == "\r")
-			continue;
+			break;
 		if (halfPos == std::string::npos)
 		{
 			m_badRequest = true;
