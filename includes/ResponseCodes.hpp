@@ -9,6 +9,8 @@ enum ResponseCodes
 	NOT_FOUND	   = 404,
 	METH_NOT_ALLOW = 405,
 	INT_SERV_ERR   = 500,
+	FORBIDDEN      = 403,
+	SERVER_ERROR   = 500,
 };
 
 #endif

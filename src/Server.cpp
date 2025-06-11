@@ -19,6 +19,11 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <vector>
+#include <dirent.h>
+#include <fstream>
+#include <ctime>
+#include <cstdio>
+#include <sys/wait.h>
 
 Server::Server(const Server::ServerConfig& config)
 {
@@ -203,14 +208,8 @@ void Server::fillCache(int fd)
 
 Request* Server::deserializeRequest(Request* req)
 {
-	std::string res;
-	char bodyChar;
-	for (size_t i = 0; i < req->getBodyLenght(); i++)
-	{
-		cache.get(bodyChar);
-		res.append(1, bodyChar);
-	}
-	req->fillRequest(res);
+	req->fillRequest(cache.str());
+	req->checkIntegrity();
 	return req;
 }
 
@@ -246,14 +245,13 @@ void Server::handleEvent(int fd)
 		if (req == NULL)
 		{
 			req = new Request();
-			getHeader(req);
 		}
 		deserializeRequest(req);
-		if (req->getBodyLenght() == req->getBody().size())
+
+		if (req->getMethod() == GET || req->getBodyLenght() == req->getBody().size())
 		{
 			handleRequestTypes(req);
 			send(fd, m_response.c_str(), m_response.size(), 0);
-			LOG("FD: " << fd);
 			close(fd);
 			delete req;
 			req = NULL;
@@ -262,65 +260,262 @@ void Server::handleEvent(int fd)
 	}
 }
 
-void Server::handleGetRequest(Request* req)
+bool isDirectory(const std::string& path)
 {
-	Response response;
-	std::string filePath;
+	struct stat statbuf;
+	if (stat(path.c_str(), &statbuf) != 0)
+		return false;
+	return S_ISDIR(statbuf.st_mode);
+}
+
+std::string Server::generateDirectoryListing(const std::string& path, const std::string& uri)
+{
+	std::stringstream html;
+	DIR* dir = opendir(path.c_str());
+
+	if (!dir)
+		return "<html><body><h1>403 Forbidden</h1></body></html>";
+
+	html << "<html><body><h1>Index of " << uri << "</h1><ul>";
+
+	struct dirent* entry;
+	while ((entry = readdir(dir)) != NULL)
+	{
+		std::string name = entry->d_name;
+		if (name == ".")
+			continue;
+		html << "<li><a href=\"" << uri;
+		if (uri[uri.length() - 1] != '/')
+			html << "/";
+		html << name << "\">" << name << "</a></li>";
+	}
+
+	html << "</ul></body></html>";
+	closedir(dir);
+	return html.str();
+}
+
+std::string Server::executeCgi(const std::string& scriptPath, const std::string& interpreter)
+{
+	int pipefd[2];
+	if (pipe(pipefd) == -1)
+		return "CGI error: pipe() failed\n";
+
+	pid_t pid = fork();
+	if (pid == -1)
+		return "CGI error: fork() failed\n";
+
+	if (pid == 0)
+	{
+		close(pipefd[0]);
+		dup2(pipefd[1], STDOUT_FILENO);
+		close(pipefd[1]);
+
+		char* args[] = {
+			const_cast<char*>(interpreter.c_str()),
+			const_cast<char*>(scriptPath.c_str()),
+			NULL
+		};
+
+		char* env[] = {
+			const_cast<char*>("GATEWAY_INTERFACE=CGI/1.1"),
+			const_cast<char*>("SERVER_PROTOCOL=HTTP/1.1"),
+			NULL
+		};
+
+		execve(args[0], args, env);
+		perror("execve");
+		exit(1);
+	}
+
+	close(pipefd[1]);
+	std::string output;
+	char buffer[1024];
+	ssize_t bytesRead;
+
+	while ((bytesRead = read(pipefd[0], buffer, sizeof(buffer))) > 0)
+		output.append(buffer, bytesRead);
+
+	close(pipefd[0]);
+	waitpid(pid, NULL, 0);
+
+	return output;
+}
+
+void Server::handleGetRequest(Request* req, const Location& loc)
+{
 	LOG("Started Handling GET Request");
-	char cwd[200];
-	getcwd(cwd, 200);
-	filePath = std::string(cwd) + req->getPath();
+	Response response;
+	std::string uri = req->getPath();
+
+	std::string relativePath = uri.substr(loc.locUrl.length());
+	std::string filePath = loc.rootPath + relativePath;
+
+	if (!loc.cgiExtension.empty() &&
+		filePath.size() >= loc.cgiExtension.size() &&
+		filePath.compare(filePath.size() - loc.cgiExtension.size(), loc.cgiExtension.size(), loc.cgiExtension) == 0)
+	{
+		std::string cgiOutput = executeCgi(filePath, loc.cgiExecutablePath);
+
+		size_t headerEnd = cgiOutput.find("\r\n\r\n");
+		if (headerEnd == std::string::npos)
+			headerEnd = cgiOutput.find("\n\n");
+
+		std::string headers, body;
+		if (headerEnd != std::string::npos)
+		{
+			headers = cgiOutput.substr(0, headerEnd);
+			body = cgiOutput.substr(headerEnd + (cgiOutput[headerEnd] == '\r' ? 4 : 2));
+		}
+		else
+		{
+			body = cgiOutput;
+		}
+
+		Response response;
+		response.status(OK).htppVersion(HTTP_VERSION).body(body);
+
+		size_t ctPos = headers.find("Content-Type:");
+		if (ctPos != std::string::npos)
+		{
+			size_t endLine = headers.find('\n', ctPos);
+			std::string ctLine = headers.substr(ctPos, endLine - ctPos);
+			size_t sep = ctLine.find(":");
+			if (sep != std::string::npos)
+			{
+				std::string value = ctLine.substr(sep + 1);
+				while (!value.empty() && (value[0] == ' ' || value[0] == '\t'))
+					value.erase(0, 1);
+				response.header("Content-Type", value);
+			}
+		}
+
+		m_response = response.build();
+		return;
+	}
+
+	if (isDirectory(filePath))
+	{
+		if (!loc.indexFile.empty())
+		{
+			filePath += "/" + loc.indexFile;
+		}
+		else if (loc.autoIndex)
+		{
+			std::string listing = generateDirectoryListing(filePath, uri);
+			m_response = response.status(OK)
+								 .htppVersion(HTTP_VERSION)
+								 .header("Content-Type", "text/html")
+								 .body(listing)
+								 .build();
+			return;
+		}
+		else
+		{
+			m_response = response.status(FORBIDDEN)
+								 .htppVersion(HTTP_VERSION)
+								 .body("403 Forbidden")
+								 .build();
+			return;
+		}
+	}
+
 	if (access(filePath.c_str(), F_OK) != 0)
 	{
-		filePath   = "./www/404.html";
+		std::string notFound = "./www/404.html";
 		m_response = response.status(NOT_FOUND)
+							 .htppVersion(HTTP_VERSION)
+							 .body(getFileContent(notFound))
+							 .header("Content-Type", getContentType(notFound))
+							 .build();
+		return;
+	}
+
+	m_response = response.status(OK)
 						 .htppVersion(HTTP_VERSION)
 						 .body(getFileContent(filePath))
 						 .header("Content-Type", getContentType(filePath))
 						 .build();
-		return;
-	}
-	m_response = response.status(OK)
-					 .htppVersion(HTTP_VERSION)
-					 .body(getFileContent(filePath))
-					 .header("Content-Type", getContentType(filePath))
-					 .build();
 }
 
-void Server::handlePostRequest(Request* req)
+void Server::handlePostRequest(Request* req, const Location& loc)
 {
+	LOG("Started Handling POST Request");
 	Response response;
-	std::string filePath;
-	filePath = req->getPath();
 
-	int file = open(filePath.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
-	if (file == -1)
+	if (!loc.uploadEnabled)
 	{
-		filePath = "./www/500.html";
-		m_response =
-			response.htppVersion(HTTP_VERSION).status(INT_SERV_ERR).build();
+		m_response = response.status(FORBIDDEN)
+							 .htppVersion(HTTP_VERSION)
+							 .body("403 Forbidden: Upload not allowed here.")
+							 .build();
 		return;
 	}
-	write(file, req->getBody().c_str(), req->getBody().size());
-	close(file);
+
+	std::string body = req->getBody();
+	if (body.empty())
+	{
+		m_response = response.status(BAD_REQ)
+							 .htppVersion(HTTP_VERSION)
+							 .body("400 Bad Request: No content to upload.")
+							 .build();
+		return;
+	}
+
+	std::stringstream ss;
+	ss << std::time(NULL);
+	std::string filename = loc.uploadPath + "/upload_" + ss.str();
+
+	std::ofstream file(filename.c_str(), std::ios::binary);
+	if (!file.is_open())
+	{
+		m_response = response.status(SERVER_ERROR)
+							 .htppVersion(HTTP_VERSION)
+							 .body("500 Internal Server Error: Cannot write file.")
+							 .build();
+		return;
+	}
+
+	file << body;
+	file.close();
+
 	m_response = response.status(CREATED)
-					 .htppVersion(HTTP_VERSION)
-					 .header("Content-Type", "text/plain")
-					 .body("File uploaded successfully.\n")
-					 .build();
+						 .htppVersion(HTTP_VERSION)
+						 .body("201 Created: File uploaded successfully.\n")
+						 .build();
 }
 
-void Server::handleDeleteRequest(Request* req)
+void Server::handleDeleteRequest(Request* req, const Location& loc)
 {
+	LOG("Started Handling DELETE Request");
 	Response response;
-	std::string filePath;
-	filePath = req->getPath();
-	int res	 = std::remove(filePath.c_str());
-	if (res == 0)
-		m_response = response.htppVersion(HTTP_VERSION).status(OK).build();
-	else
-		m_response =
-			response.htppVersion(HTTP_VERSION).status(NOT_FOUND).build();
+
+	std::string uri = req->getPath();
+	std::string relativePath = uri.substr(loc.locUrl.length());
+	std::string filePath = loc.rootPath + relativePath;
+
+	if (access(filePath.c_str(), F_OK) != 0)
+	{
+		m_response = response.status(NOT_FOUND)
+							 .htppVersion(HTTP_VERSION)
+							 .body("404 Not Found: File does not exist.\n")
+							 .build();
+		return;
+	}
+
+	if (std::remove(filePath.c_str()) != 0)
+	{
+		m_response = response.status(FORBIDDEN)
+							 .htppVersion(HTTP_VERSION)
+							 .body("403 Forbidden: Cannot delete file.\n")
+							 .build();
+		return;
+	}
+
+	m_response = response.status(OK)
+						 .htppVersion(HTTP_VERSION)
+						 .body("200 OK: File deleted successfully.\n")
+						 .build();
 }
 
 void Server::handleInvalidRequest()
@@ -335,24 +530,78 @@ void Server::handleInvalidRequest()
 					 .build();
 }
 
+const Server::Location* Server::matchLocation(const std::string& uri) const
+{
+	const Location* bestMatch = NULL;
+	size_t bestLength = 0;
+
+	for (std::vector<Location>::const_iterator it = m_locations.begin(); it != m_locations.end(); ++it)
+	{
+		if (uri.find(it->locUrl) == 0)
+		{
+			if (it->locUrl.length() > bestLength)
+			{
+				bestMatch = &(*it);
+				bestLength = it->locUrl.length();
+			}
+		}
+	}
+
+	return bestMatch;
+}
+
 void Server::handleRequestTypes(Request* req)
 {
 	if (req->getBadRequest())
-		m_response =
-			Response().htppVersion(HTTP_VERSION).status(BAD_REQ).build();
+	{
+		m_response = Response()
+			.htppVersion(HTTP_VERSION)
+			.status(BAD_REQ)
+			.build();
+		return;
+	}
+
+	const Location* loc = matchLocation(req->getPath());
+
+	if (!loc)
+	{
+		m_response = Response()
+			.htppVersion(HTTP_VERSION)
+			.status(NOT_FOUND)
+			.build();
+		return;
+	}
+
+	if (std::find(loc->allowedMethods.begin(), loc->allowedMethods.end(), req->getMethod()) == loc->allowedMethods.end())
+	{
+		handleInvalidRequest();
+		return;
+	}
+
+	if (loc->hasRedirect)
+	{
+		std::stringstream response;
+		response << "HTTP/1.1 " << loc->redirectCode << " Moved\r\n";
+		response << "Location: " << loc->redirectTo << "\r\n";
+		response << "Content-Length: 0\r\n\r\n";
+		m_response = response.str();
+		return;
+	}
+
 	switch (req->getMethod())
 	{
-	case GET:
-		handleGetRequest(req);
-		break;
-	case POST:
-		handlePostRequest(req);
-		break;
-	case DELETE:
-		handleDeleteRequest(req);
-		break;
-	case INVALID:
-		handleInvalidRequest();
+		case GET:
+			handleGetRequest(req, *loc);
+			break;
+		case POST:
+			handlePostRequest(req, *loc);
+			break;
+		case DELETE:
+			handleDeleteRequest(req, *loc);
+			break;
+		default:
+			handleInvalidRequest();
+			break;
 	}
 }
 
