@@ -4,6 +4,7 @@
 #include <cstdlib>
 #include <sstream>
 #include <string>
+#include <sys/types.h>
 
 HttpMethods Request::getMethod() const { return m_method; }
 
@@ -85,9 +86,11 @@ void Request::checkHeaders(std::stringstream& dataStream)
 	{
 		std::string key, value;
 		size_t halfPos = line.find(':');
+		if (line == "\r")
+			continue;
 		if (halfPos == std::string::npos)
 		{
-			m_badRequest = false;
+			m_badRequest = true;
 			return;
 		}
 		key = line.substr(0, halfPos);
@@ -104,7 +107,6 @@ void Request::checkHeaders(std::stringstream& dataStream)
 		}
 		m_headers[key] = value;
 	}
-
 }
 
 void Request::checkIntegrity()
