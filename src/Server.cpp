@@ -66,7 +66,7 @@ int getPortFromSocket(int fd)
 }
 
 Server* findMatchingServer(const std::string& ip, int port,
-						   const std::vector< Server* >& servers)
+								const std::vector< Server* >& servers)
 {
 	for (size_t i = 0; i < servers.size(); ++i)
 	{
@@ -342,6 +342,70 @@ std::string Server::executeCgi(const std::string& scriptPath, const std::string&
 	return output;
 }
 
+void Server::handleCgiOutput(std::string cgiOutput)
+{
+	size_t headerEnd = cgiOutput.find("\r\n\r\n");
+	if (headerEnd == std::string::npos)
+		headerEnd = cgiOutput.find("\n\n");
+
+	std::string headers, body;
+	if (headerEnd != std::string::npos)
+	{
+		headers = cgiOutput.substr(0, headerEnd);
+		body = cgiOutput.substr(headerEnd + (cgiOutput[headerEnd] == '\r' ? 4 : 2));
+	}
+	else
+	{
+		body = cgiOutput;
+	}
+
+	Response response;
+	response.status(OK).htppVersion(HTTP_VERSION).body(body);
+
+	size_t ctPos = headers.find("Content-Type:");
+	if (ctPos != std::string::npos)
+	{
+		size_t endLine = headers.find('\n', ctPos);
+		std::string ctLine = headers.substr(ctPos, endLine - ctPos);
+		size_t sep = ctLine.find(":");
+		if (sep != std::string::npos)
+		{
+			std::string value = ctLine.substr(sep + 1);
+			while (!value.empty() && (value[0] == ' ' || value[0] == '\t'))
+				value.erase(0, 1);
+			response.header("Content-Type", value);
+		}
+	}
+	m_response = response.build();
+}
+
+void Server::handleDirectory(const Location& loc, std::string uri, std::string filePath)
+{
+	Response response;
+	if (!loc.indexFile.empty())
+	{
+		filePath += "/" + loc.indexFile;
+	}
+	else if (loc.autoIndex)
+	{
+		std::string listing = generateDirectoryListing(filePath, uri);
+		m_response = response.status(OK)
+								.htppVersion(HTTP_VERSION)
+								.header("Content-Type", "text/html")
+								.body(listing)
+								.build();
+		return;
+	}
+	else
+	{
+		m_response = response.status(FORBIDDEN)
+								.htppVersion(HTTP_VERSION)
+								.body("403 Forbidden")
+								.build();
+		return;
+	}
+}
+
 void Server::handleGetRequest(Request* req, const Location& loc)
 {
 	LOG("Started Handling GET Request");
@@ -355,69 +419,14 @@ void Server::handleGetRequest(Request* req, const Location& loc)
 		filePath.size() >= loc.cgiExtension.size() &&
 		filePath.compare(filePath.size() - loc.cgiExtension.size(), loc.cgiExtension.size(), loc.cgiExtension) == 0)
 	{
-		std::string cgiOutput = executeCgi(filePath, loc.cgiExecutablePath);
-
-		size_t headerEnd = cgiOutput.find("\r\n\r\n");
-		if (headerEnd == std::string::npos)
-			headerEnd = cgiOutput.find("\n\n");
-
-		std::string headers, body;
-		if (headerEnd != std::string::npos)
-		{
-			headers = cgiOutput.substr(0, headerEnd);
-			body = cgiOutput.substr(headerEnd + (cgiOutput[headerEnd] == '\r' ? 4 : 2));
-		}
-		else
-		{
-			body = cgiOutput;
-		}
-
-		Response response;
-		response.status(OK).htppVersion(HTTP_VERSION).body(body);
-
-		size_t ctPos = headers.find("Content-Type:");
-		if (ctPos != std::string::npos)
-		{
-			size_t endLine = headers.find('\n', ctPos);
-			std::string ctLine = headers.substr(ctPos, endLine - ctPos);
-			size_t sep = ctLine.find(":");
-			if (sep != std::string::npos)
-			{
-				std::string value = ctLine.substr(sep + 1);
-				while (!value.empty() && (value[0] == ' ' || value[0] == '\t'))
-					value.erase(0, 1);
-				response.header("Content-Type", value);
-			}
-		}
-
-		m_response = response.build();
+		handleCgiOutput(executeCgi(filePath, loc.cgiExecutablePath));
 		return;
 	}
 
 	if (isDirectory(filePath))
 	{
-		if (!loc.indexFile.empty())
-		{
-			filePath += "/" + loc.indexFile;
-		}
-		else if (loc.autoIndex)
-		{
-			std::string listing = generateDirectoryListing(filePath, uri);
-			m_response = response.status(OK)
-								 .htppVersion(HTTP_VERSION)
-								 .header("Content-Type", "text/html")
-								 .body(listing)
-								 .build();
-			return;
-		}
-		else
-		{
-			m_response = response.status(FORBIDDEN)
-								 .htppVersion(HTTP_VERSION)
-								 .body("403 Forbidden")
-								 .build();
-			return;
-		}
+		handleDirectory(loc, uri, filePath);
+		return ;
 	}
 
 	if (access(filePath.c_str(), F_OK) != 0)
