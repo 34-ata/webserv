@@ -67,6 +67,8 @@ class Server
 	void handlePostRequest(Request* req, const Location& loc);
 	void handleDeleteRequest(Request* req, const Location& loc);
 	void handleInvalidRequest();
+	void handleCgiOutput(std::string cgiOutput);
+	void handleDirectory(const Location& loc, std::string uri, std::string filePath);
 	void getHeader(Request *req);
 
 	bool ownsFd(int fd) const;
