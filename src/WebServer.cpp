@@ -1,14 +1,20 @@
 #include "WebServer.hpp"
+#include "ResponseCodes.hpp"
 #include "SyntaxException.hpp"
 #include "Tokenizer.hpp"
+#include <cstddef>
+#include <cstdlib>
 #include <cstring>
 #include <fstream>
 #include <iostream>
 #include <list>
+#include <map>
 #include <sstream>
+#include <string>
 #include <strings.h>
 #include <sys/epoll.h>
 #include <sys/socket.h>
+#include <vector>
 
 WebServer::WebServer()
 {
@@ -28,6 +34,81 @@ WebServer& WebServer::operator=(const WebServer& other)
 {
 	(void)other;
 	return *this;
+}
+
+bool isErrorCode(std::string code)
+{
+	ResponseCodes errors[] = {NOT_FOUND, INT_SERV_ERR};
+	for (size_t i = 0; i < 2; i++)
+	{
+		if (std::atoi(code.c_str()) == errors[i])
+			return true;
+	}
+	return false;
+}
+
+Server::ServerConfig WebServer::createServerConfig(const ConfigBlock& server)
+{
+	Server::ServerConfig config;
+	std::vector< ConfigDirective > directives = server.directives;
+	for (size_t i = 0; i < directives.size(); i++)
+	{
+		std::string directive_name				  = directives[i].directiveName;
+		std::vector< std::string > directive_args = directives[i].args;
+		if (directive_name == "server_name")
+			config.serverName =
+				directive_args[0]; // 1 isim alıyor sonra değişecek.
+		else if (directive_name == "error_page")
+		{
+			if (directive_args.size() != 2)
+				throw SyntaxException(server, directives[i],
+									  "Invalid usage of given directive.");
+			if (!isErrorCode(directive_args[0]))
+				throw SyntaxException(server, directives[i],
+									  "Invalid error code");
+			config.errorPages[(ResponseCodes)std::atoi(
+				directive_args[0].c_str())] = directive_args[1];
+		}
+		else if (directive_name == "root")
+		{
+			if (directive_args.size() != 1)
+				throw SyntaxException(server, directives[i],
+									  "Invalid usage of given directive.");
+			config.rootPath = directive_args[0];
+		}
+		else if (directive_name == "index")
+		{
+			if (directive_args.size() != 1)
+				throw SyntaxException(server, directives[i],
+									  "Invalid usage of given directive.");
+			config.indexPath = directive_args[0];
+		}
+		else if (directive_name == "autoindex")
+		{
+			if (directive_args.size() != 1)
+				throw SyntaxException(server, directives[i],
+									  "Invalid usage of given directive.");
+			if (directive_args[0] != "on" || directive_args[0] != "off")
+				throw SyntaxException(server, directives[i],
+									  "Invalid value of autoindex.");
+			if (directive_args[0] == "on")
+				config.autoIndex = true;
+			else if (directive_args[0] == "off")
+				config.autoIndex = false;
+		}
+		else if (directive_name == "client_max_body_size")
+		{
+			if (directive_args.size() != 1)
+				throw SyntaxException(server, directives[i],
+									  "Invalid usage of given directive.");
+			config.clientMaxBodySize = std::atoi(directive_args[0].c_str());
+			if (config.clientMaxBodySize == 0)
+				throw SyntaxException(server, directives[i],
+									  "Invalid size for body.");
+		}
+	}
+
+	return config;
 }
 
 bool WebServer::Init(const std::string& configFile)
@@ -50,47 +131,47 @@ bool WebServer::Init(const std::string& configFile)
 	fileIn.close();
 
 	Server::Location loc1;
-	loc1.locUrl = "/images";
-	loc1.rootPath = "./www/images";
+	loc1.locUrl	   = "/images";
+	loc1.rootPath  = "./www/images";
 	loc1.indexFile = "index.html";
 	loc1.autoIndex = true;
 	loc1.allowedMethods.push_back(GET);
 	loc1.allowedMethods.push_back(POST);
 	loc1.allowedMethods.push_back(DELETE);
-	loc1.hasRedirect = false;
+	loc1.hasRedirect   = false;
 	loc1.uploadEnabled = false;
 
 	Server::Location loc2;
-	loc2.locUrl = "/old-page";
-	loc2.rootPath = "";
+	loc2.locUrl	   = "/old-page";
+	loc2.rootPath  = "";
 	loc2.indexFile = "";
 	loc2.autoIndex = false;
 	loc2.allowedMethods.push_back(GET);
-	loc2.hasRedirect = true;
-	loc2.redirectTo = "/new-page";
-	loc2.redirectCode = 301;
+	loc2.hasRedirect   = true;
+	loc2.redirectTo	   = "/new-page";
+	loc2.redirectCode  = 301;
 	loc2.uploadEnabled = false;
 
 	Server::Location loc3;
-	loc3.locUrl = "/upload";
-	loc3.rootPath = "./www/uploads";
+	loc3.locUrl	   = "/upload";
+	loc3.rootPath  = "./www/uploads";
 	loc3.indexFile = "";
 	loc3.autoIndex = false;
 	loc3.allowedMethods.push_back(POST);
 	loc3.uploadEnabled = true;
-	loc3.uploadPath = "./www/uploads";
-	loc3.hasRedirect = false;
+	loc3.uploadPath	   = "./www/uploads";
+	loc3.hasRedirect   = false;
 
 	Server::Location loc4;
-	loc4.locUrl = "/cgi-bin";
-	loc4.rootPath = "./www/cgi-bin";
+	loc4.locUrl	   = "/cgi-bin";
+	loc4.rootPath  = "./www/cgi-bin";
 	loc4.indexFile = "";
 	loc4.autoIndex = false;
 	loc4.allowedMethods.push_back(GET);
-	loc4.cgiExtension = ".py";
+	loc4.cgiExtension	   = ".py";
 	loc4.cgiExecutablePath = "/usr/bin/python3";
-	loc4.hasRedirect = false;
-	loc4.uploadEnabled = false;
+	loc4.hasRedirect	   = false;
+	loc4.uploadEnabled	   = false;
 
 	Server::ServerConfig conf1;
 	conf1.locations.push_back(loc1);

@@ -4,6 +4,7 @@
 #include "HttpMethods.hpp"
 #include "Request.hpp"
 #include "Response.hpp"
+#include "ResponseCodes.hpp"
 #include <arpa/inet.h>
 #include <cstddef>
 #include <cstdio>
@@ -27,9 +28,9 @@ class Server
 	{
 		std::string locUrl;
 		std::string rootPath;
-		std::string indexFile;
+		std::string indexPath;
 		bool autoIndex;
-		std::vector<HttpMethods> allowedMethods;
+		std::vector< HttpMethods > allowedMethods;
 
 		bool hasRedirect;
 		std::string redirectTo;
@@ -42,17 +43,18 @@ class Server
 		std::string cgiExecutablePath;
 	};
 
-
 	struct ServerConfig
 	{
 		ServerConfig();
 
-		std::map< int, std::string > errorPages;
+		std::map< ResponseCodes, std::string > errorPages;
 		std::vector< Location > locations;
 		std::string serverName;
 		std::vector< std::pair< std::string, std::string > > listens;
-		std::string clientMaxBodySize;
+		size_t clientMaxBodySize;
 		std::string rootPath;
+		std::string indexPath;
+		bool autoIndex;
 	};
 
 	Server();
@@ -68,8 +70,9 @@ class Server
 	void handleDeleteRequest(Request* req, const Location& loc);
 	void handleInvalidRequest();
 	void handleCgiOutput(std::string cgiOutput);
-	void handleDirectory(const Location& loc, std::string uri, std::string filePath);
-	void getHeader(Request *req);
+	void handleDirectory(const Location& loc, std::string uri,
+						 std::string filePath);
+	void getHeader(Request* req);
 
 	bool ownsFd(int fd) const;
 	std::vector< struct pollfd >& getPollFds();
@@ -78,8 +81,10 @@ class Server
 	Request* deserializeRequest(Request* req);
 
 	const Server::Location* matchLocation(const std::string& uri) const;
-	std::string generateDirectoryListing(const std::string& path, const std::string& uri);
-	std::string executeCgi(const std::string& scriptPath, const std::string& interpreter);
+	std::string generateDirectoryListing(const std::string& path,
+										 const std::string& uri);
+	std::string executeCgi(const std::string& scriptPath,
+						   const std::string& interpreter);
 	std::vector< std::pair< std::string, std::string > > getListens() const;
 	std::string getServerName() const;
 	void removePollFd(int fd);

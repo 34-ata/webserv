@@ -231,7 +231,6 @@ void Server::getHeader(Request* req)
 		req->setBadRequest();
 	req->checkIntegrity();
 	res.clear();
-
 }
 
 void Server::handleEvent(int fd)

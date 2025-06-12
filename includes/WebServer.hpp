@@ -23,6 +23,7 @@ class WebServer
 	void Parse(std::ifstream& fileIn);
 	void ParseServer(std::list< std::string >::const_iterator start,
 					 std::list< std::string >::const_iterator end);
+	Server::ServerConfig createServerConfig(const ConfigBlock& server);
 
   private:
 	ConfigBlock m_root;
