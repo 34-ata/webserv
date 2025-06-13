@@ -5,11 +5,15 @@
 #include "Log.hpp"
 #include "Request.hpp"
 #include "ResponseCodes.hpp"
+#include "SyntaxException.hpp"
 #include <algorithm>
 #include <cstddef>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <ctime>
+#include <dirent.h>
+#include <fstream>
 #include <iostream>
 #include <map>
 #include <queue>
@@ -17,13 +21,10 @@
 #include <string>
 #include <sys/socket.h>
 #include <sys/stat.h>
-#include <unistd.h>
-#include <vector>
-#include <dirent.h>
-#include <fstream>
-#include <ctime>
-#include <cstdio>
 #include <sys/wait.h>
+#include <unistd.h>
+#include <utility>
+#include <vector>
 
 Server::Server(const Server::ServerConfig& config)
 {
@@ -31,15 +32,26 @@ Server::Server(const Server::ServerConfig& config)
 	this->m_clientMaxBodySize = config.clientMaxBodySize;
 	this->m_errorPages		  = config.errorPages;
 	this->m_locations		  = config.locations;
-	this->m_listens			  = config.listens;
-	this->m_isRunning		  = false;
+	for (size_t i = 0; i < config.listens.size(); i++)
+	{
+		size_t seperaterPos = config.listens[i].find(':');
+		if (seperaterPos != std::string::npos)
+		{
+			std::string ip	 = config.listens[i].substr(0, seperaterPos);
+			std::string port = config.listens[i].substr(seperaterPos + 1);
+			m_listens.push_back(std::make_pair(ip, port));
+		}
+		else
+			m_listens.push_back(std::make_pair("0.0.0.0", config.listens[i]));
+	}
+	this->m_isRunning = false;
 }
 
 Server::ServerConfig::ServerConfig()
 {
-	serverName		  = "";
-	clientMaxBodySize = "1M";
-	errorPages[404]	  = "404.html";
+	serverName			  = "";
+	clientMaxBodySize	  = 1000000;
+	errorPages[NOT_FOUND] = "404.html";
 }
 
 Server::~Server()
@@ -66,7 +78,7 @@ int getPortFromSocket(int fd)
 }
 
 Server* findMatchingServer(const std::string& ip, int port,
-								const std::vector< Server* >& servers)
+						   const std::vector< Server* >& servers)
 {
 	for (size_t i = 0; i < servers.size(); ++i)
 	{
@@ -100,7 +112,7 @@ void Server::start()
 	{
 		std::string ip		= this->m_listens[i].first;
 		std::string portStr = this->m_listens[i].second;
-		int port			= std::atoi(portStr.c_str());
+		int port = std::atoi(portStr.c_str());
 
 		int fd = socket(AF_INET, SOCK_STREAM, 0);
 		if (fd == -1)
@@ -267,7 +279,8 @@ bool isDirectory(const std::string& path)
 	return S_ISDIR(statbuf.st_mode);
 }
 
-std::string Server::generateDirectoryListing(const std::string& path, const std::string& uri)
+std::string Server::generateDirectoryListing(const std::string& path,
+											 const std::string& uri)
 {
 	std::stringstream html;
 	DIR* dir = opendir(path.c_str());
@@ -294,7 +307,8 @@ std::string Server::generateDirectoryListing(const std::string& path, const std:
 	return html.str();
 }
 
-std::string Server::executeCgi(const std::string& scriptPath, const std::string& interpreter)
+std::string Server::executeCgi(const std::string& scriptPath,
+							   const std::string& interpreter)
 {
 	int pipefd[2];
 	if (pipe(pipefd) == -1)
@@ -310,17 +324,11 @@ std::string Server::executeCgi(const std::string& scriptPath, const std::string&
 		dup2(pipefd[1], STDOUT_FILENO);
 		close(pipefd[1]);
 
-		char* args[] = {
-			const_cast<char*>(interpreter.c_str()),
-			const_cast<char*>(scriptPath.c_str()),
-			NULL
-		};
+		char* args[] = {const_cast< char* >(interpreter.c_str()),
+						const_cast< char* >(scriptPath.c_str()), NULL};
 
-		char* env[] = {
-			const_cast<char*>("GATEWAY_INTERFACE=CGI/1.1"),
-			const_cast<char*>("SERVER_PROTOCOL=HTTP/1.1"),
-			NULL
-		};
+		char* env[] = {const_cast< char* >("GATEWAY_INTERFACE=CGI/1.1"),
+					   const_cast< char* >("SERVER_PROTOCOL=HTTP/1.1"), NULL};
 
 		execve(args[0], args, env);
 		perror("execve");
@@ -351,7 +359,8 @@ void Server::handleCgiOutput(std::string cgiOutput)
 	if (headerEnd != std::string::npos)
 	{
 		headers = cgiOutput.substr(0, headerEnd);
-		body = cgiOutput.substr(headerEnd + (cgiOutput[headerEnd] == '\r' ? 4 : 2));
+		body	= cgiOutput.substr(headerEnd
+								   + (cgiOutput[headerEnd] == '\r' ? 4 : 2));
 	}
 	else
 	{
@@ -364,9 +373,9 @@ void Server::handleCgiOutput(std::string cgiOutput)
 	size_t ctPos = headers.find("Content-Type:");
 	if (ctPos != std::string::npos)
 	{
-		size_t endLine = headers.find('\n', ctPos);
+		size_t endLine	   = headers.find('\n', ctPos);
 		std::string ctLine = headers.substr(ctPos, endLine - ctPos);
-		size_t sep = ctLine.find(":");
+		size_t sep		   = ctLine.find(":");
 		if (sep != std::string::npos)
 		{
 			std::string value = ctLine.substr(sep + 1);
@@ -378,29 +387,30 @@ void Server::handleCgiOutput(std::string cgiOutput)
 	m_response = response.build();
 }
 
-void Server::handleDirectory(const Location& loc, std::string uri, std::string filePath)
+void Server::handleDirectory(const Location& loc, std::string uri,
+							 std::string filePath)
 {
 	Response response;
-	if (!loc.indexFile.empty())
+	if (!loc.indexPath.empty())
 	{
-		filePath += "/" + loc.indexFile;
+		filePath += "/" + loc.indexPath;
 	}
 	else if (loc.autoIndex)
 	{
 		std::string listing = generateDirectoryListing(filePath, uri);
-		m_response = response.status(OK)
-								.htppVersion(HTTP_VERSION)
-								.header("Content-Type", "text/html")
-								.body(listing)
-								.build();
+		m_response			= response.status(OK)
+						 .htppVersion(HTTP_VERSION)
+						 .header("Content-Type", "text/html")
+						 .body(listing)
+						 .build();
 		return;
 	}
 	else
 	{
 		m_response = response.status(FORBIDDEN)
-								.htppVersion(HTTP_VERSION)
-								.body("403 Forbidden")
-								.build();
+						 .htppVersion(HTTP_VERSION)
+						 .body("403 Forbidden")
+						 .build();
 		return;
 	}
 }
@@ -412,11 +422,12 @@ void Server::handleGetRequest(Request* req, const Location& loc)
 	std::string uri = req->getPath();
 
 	std::string relativePath = uri.substr(loc.locUrl.length());
-	std::string filePath = loc.rootPath + relativePath;
+	std::string filePath	 = loc.rootPath + relativePath;
 
-	if (!loc.cgiExtension.empty() &&
-		filePath.size() >= loc.cgiExtension.size() &&
-		filePath.compare(filePath.size() - loc.cgiExtension.size(), loc.cgiExtension.size(), loc.cgiExtension) == 0)
+	if (!loc.cgiExtension.empty() && filePath.size() >= loc.cgiExtension.size()
+		&& filePath.compare(filePath.size() - loc.cgiExtension.size(),
+							loc.cgiExtension.size(), loc.cgiExtension)
+			   == 0)
 	{
 		handleCgiOutput(executeCgi(filePath, loc.cgiExecutablePath));
 		return;
@@ -425,25 +436,25 @@ void Server::handleGetRequest(Request* req, const Location& loc)
 	if (isDirectory(filePath))
 	{
 		handleDirectory(loc, uri, filePath);
-		return ;
+		return;
 	}
 
 	if (access(filePath.c_str(), F_OK) != 0)
 	{
 		std::string notFound = "./www/404.html";
-		m_response = response.status(NOT_FOUND)
-							 .htppVersion(HTTP_VERSION)
-							 .body(getFileContent(notFound))
-							 .header("Content-Type", getContentType(notFound))
-							 .build();
+		m_response			 = response.status(NOT_FOUND)
+						 .htppVersion(HTTP_VERSION)
+						 .body(getFileContent(notFound))
+						 .header("Content-Type", getContentType(notFound))
+						 .build();
 		return;
 	}
 
 	m_response = response.status(OK)
-						 .htppVersion(HTTP_VERSION)
-						 .body(getFileContent(filePath))
-						 .header("Content-Type", getContentType(filePath))
-						 .build();
+					 .htppVersion(HTTP_VERSION)
+					 .body(getFileContent(filePath))
+					 .header("Content-Type", getContentType(filePath))
+					 .build();
 }
 
 void Server::handlePostRequest(Request* req, const Location& loc)
@@ -454,9 +465,9 @@ void Server::handlePostRequest(Request* req, const Location& loc)
 	if (!loc.uploadEnabled)
 	{
 		m_response = response.status(FORBIDDEN)
-							 .htppVersion(HTTP_VERSION)
-							 .body("403 Forbidden: Upload not allowed here.")
-							 .build();
+						 .htppVersion(HTTP_VERSION)
+						 .body("403 Forbidden: Upload not allowed here.")
+						 .build();
 		return;
 	}
 
@@ -464,9 +475,9 @@ void Server::handlePostRequest(Request* req, const Location& loc)
 	if (body.empty())
 	{
 		m_response = response.status(BAD_REQ)
-							 .htppVersion(HTTP_VERSION)
-							 .body("400 Bad Request: No content to upload.")
-							 .build();
+						 .htppVersion(HTTP_VERSION)
+						 .body("400 Bad Request: No content to upload.")
+						 .build();
 		return;
 	}
 
@@ -478,9 +489,9 @@ void Server::handlePostRequest(Request* req, const Location& loc)
 	if (!file.is_open())
 	{
 		m_response = response.status(SERVER_ERROR)
-							 .htppVersion(HTTP_VERSION)
-							 .body("500 Internal Server Error: Cannot write file.")
-							 .build();
+						 .htppVersion(HTTP_VERSION)
+						 .body("500 Internal Server Error: Cannot write file.")
+						 .build();
 		return;
 	}
 
@@ -488,9 +499,9 @@ void Server::handlePostRequest(Request* req, const Location& loc)
 	file.close();
 
 	m_response = response.status(CREATED)
-						 .htppVersion(HTTP_VERSION)
-						 .body("201 Created: File uploaded successfully.\n")
-						 .build();
+					 .htppVersion(HTTP_VERSION)
+					 .body("201 Created: File uploaded successfully.\n")
+					 .build();
 }
 
 void Server::handleDeleteRequest(Request* req, const Location& loc)
@@ -498,32 +509,32 @@ void Server::handleDeleteRequest(Request* req, const Location& loc)
 	LOG("Started Handling DELETE Request");
 	Response response;
 
-	std::string uri = req->getPath();
+	std::string uri			 = req->getPath();
 	std::string relativePath = uri.substr(loc.locUrl.length());
-	std::string filePath = loc.rootPath + relativePath;
+	std::string filePath	 = loc.rootPath + relativePath;
 
 	if (access(filePath.c_str(), F_OK) != 0)
 	{
 		m_response = response.status(NOT_FOUND)
-							 .htppVersion(HTTP_VERSION)
-							 .body("404 Not Found: File does not exist.\n")
-							 .build();
+						 .htppVersion(HTTP_VERSION)
+						 .body("404 Not Found: File does not exist.\n")
+						 .build();
 		return;
 	}
 
 	if (std::remove(filePath.c_str()) != 0)
 	{
 		m_response = response.status(FORBIDDEN)
-							 .htppVersion(HTTP_VERSION)
-							 .body("403 Forbidden: Cannot delete file.\n")
-							 .build();
+						 .htppVersion(HTTP_VERSION)
+						 .body("403 Forbidden: Cannot delete file.\n")
+						 .build();
 		return;
 	}
 
 	m_response = response.status(OK)
-						 .htppVersion(HTTP_VERSION)
-						 .body("200 OK: File deleted successfully.\n")
-						 .build();
+					 .htppVersion(HTTP_VERSION)
+					 .body("200 OK: File deleted successfully.\n")
+					 .build();
 }
 
 void Server::handleInvalidRequest()
@@ -541,15 +552,16 @@ void Server::handleInvalidRequest()
 const Server::Location* Server::matchLocation(const std::string& uri) const
 {
 	const Location* bestMatch = NULL;
-	size_t bestLength = 0;
+	size_t bestLength		  = 0;
 
-	for (std::vector<Location>::const_iterator it = m_locations.begin(); it != m_locations.end(); ++it)
+	for (std::vector< Location >::const_iterator it = m_locations.begin();
+		 it != m_locations.end(); ++it)
 	{
 		if (uri.find(it->locUrl) == 0)
 		{
 			if (it->locUrl.length() > bestLength)
 			{
-				bestMatch = &(*it);
+				bestMatch  = &(*it);
 				bestLength = it->locUrl.length();
 			}
 		}
@@ -562,11 +574,10 @@ void Server::handleRequestTypes(Request* req)
 {
 	if (req->getBadRequest())
 	{
-		LOG("\nMETHOD: " << req->getMethod() << "\nBAD_REQ: " << req->getData());
-		m_response = Response()
-			.htppVersion(HTTP_VERSION)
-			.status(BAD_REQ)
-			.build();
+		LOG("\nMETHOD: " << req->getMethod()
+						 << "\nBAD_REQ: " << req->getData());
+		m_response =
+			Response().htppVersion(HTTP_VERSION).status(BAD_REQ).build();
 		return;
 	}
 
@@ -574,14 +585,14 @@ void Server::handleRequestTypes(Request* req)
 
 	if (!loc)
 	{
-		m_response = Response()
-			.htppVersion(HTTP_VERSION)
-			.status(NOT_FOUND)
-			.build();
+		m_response =
+			Response().htppVersion(HTTP_VERSION).status(NOT_FOUND).build();
 		return;
 	}
 
-	if (std::find(loc->allowedMethods.begin(), loc->allowedMethods.end(), req->getMethod()) == loc->allowedMethods.end())
+	if (std::find(loc->allowedMethods.begin(), loc->allowedMethods.end(),
+				  req->getMethod())
+		== loc->allowedMethods.end())
 	{
 		handleInvalidRequest();
 		return;
@@ -599,18 +610,18 @@ void Server::handleRequestTypes(Request* req)
 
 	switch (req->getMethod())
 	{
-		case GET:
-			handleGetRequest(req, *loc);
-			break;
-		case POST:
-			handlePostRequest(req, *loc);
-			break;
-		case DELETE:
-			handleDeleteRequest(req, *loc);
-			break;
-		default:
-			handleInvalidRequest();
-			break;
+	case GET:
+		handleGetRequest(req, *loc);
+		break;
+	case POST:
+		handlePostRequest(req, *loc);
+		break;
+	case DELETE:
+		handleDeleteRequest(req, *loc);
+		break;
+	default:
+		handleInvalidRequest();
+		break;
 	}
 }
 
@@ -622,3 +633,16 @@ std::vector< std::pair< std::string, std::string > > Server::getListens() const
 }
 
 std::vector< struct pollfd >& Server::getPollFds() { return pollFds; }
+
+Server::Location::Location()
+{
+	locUrl = "/";
+	rootPath  = "";
+	indexPath = "index.html";
+	autoIndex = true;
+	allowedMethods.push_back(GET);
+	allowedMethods.push_back(POST);
+	allowedMethods.push_back(DELETE);
+	hasRedirect   = false;
+	uploadEnabled = false;
+}

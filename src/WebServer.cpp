@@ -1,10 +1,14 @@
 #include "WebServer.hpp"
+#include "HttpMethods.hpp"
 #include "ResponseCodes.hpp"
+#include "Server.hpp"
 #include "SyntaxException.hpp"
 #include "Tokenizer.hpp"
+#include <bits/types/locale_t.h>
 #include <cstddef>
 #include <cstdlib>
 #include <cstring>
+#include <exception>
 #include <fstream>
 #include <iostream>
 #include <list>
@@ -14,6 +18,7 @@
 #include <strings.h>
 #include <sys/epoll.h>
 #include <sys/socket.h>
+#include <utility>
 #include <vector>
 
 WebServer::WebServer()
@@ -45,6 +50,54 @@ bool isErrorCode(std::string code)
 			return true;
 	}
 	return false;
+}
+
+Server::Location WebServer::createLocation(const ConfigBlock& location)
+{
+	Server::Location loc;
+	std::vector< ConfigDirective > directives = location.directives;
+	for (size_t i = 0; i < directives.size(); i++)
+	{
+		std::string directive_name				  = directives[i].directiveName;
+		std::vector< std::string > directive_args = directives[i].args;
+		if (directive_name == "methods")
+		{
+			if (directive_args.size() < 1)
+				throw SyntaxException(location, directives[i],
+									  "Invalid usage of given directive.");
+			for (size_t j = 0; j < directive_args.size(); j++)
+				loc.allowedMethods.push_back(
+					(HttpMethods)std::atoi(directive_args[j].c_str()));
+		}
+		else if (directive_name == "root")
+		{
+			if (directive_args.size() != 1)
+				throw SyntaxException(location, directives[i],
+									  "Invalid usage of given directive.");
+			loc.rootPath = directive_args[0];
+		}
+		else if (directive_name == "index")
+		{
+			if (directive_args.size() != 1)
+				throw SyntaxException(location, directives[i],
+									  "Invalid usage of given directive.");
+			loc.indexPath = directive_args[0];
+		}
+		else if (directive_name == "autoindex")
+		{
+			if (directive_args.size() != 1)
+				throw SyntaxException(location, directives[i],
+									  "Invalid usage of given directive.");
+			if (directive_args[0] != "on" && directive_args[0] != "off")
+				throw SyntaxException(location, directives[i],
+									  "Invalid value of autoindex.");
+			if (directive_args[0] == "on")
+				loc.autoIndex = true;
+			else if (directive_args[0] == "off")
+				loc.autoIndex = false;
+		}
+	}
+	return loc;
 }
 
 Server::ServerConfig WebServer::createServerConfig(const ConfigBlock& server)
@@ -106,7 +159,19 @@ Server::ServerConfig WebServer::createServerConfig(const ConfigBlock& server)
 				throw SyntaxException(server, directives[i],
 									  "Invalid size for body.");
 		}
+		else if (directive_name == "listen")
+		{
+			if (directive_args.size() < 1)
+				throw SyntaxException(server, directives[i],
+									  "Invalid usage of given directive.");
+			for (size_t j = 0; j < directive_args.size(); j++)
+				config.listens.push_back(directive_args[j]);
+		}
 	}
+
+	std::vector< ConfigBlock* > locations = server.childs;
+	for (size_t i = 0; i < locations.size(); i++)
+		config.locations.push_back(createLocation(*locations[i]));
 
 	return config;
 }
@@ -121,6 +186,9 @@ bool WebServer::Init(const std::string& configFile)
 	try
 	{
 		Parse(fileIn);
+		for (size_t i = 0; i < m_root.childs.size(); i++)
+			m_servers.push_back(
+				new Server(createServerConfig(*m_root.childs[i])));
 	}
 	catch (const SyntaxException& e)
 	{
@@ -130,10 +198,10 @@ bool WebServer::Init(const std::string& configFile)
 	}
 	fileIn.close();
 
-	Server::Location loc1;
+	/*Server::Location loc1;
 	loc1.locUrl	   = "/images";
 	loc1.rootPath  = "./www/images";
-	loc1.indexFile = "index.html";
+	loc1.indexPath = "index.html";
 	loc1.autoIndex = true;
 	loc1.allowedMethods.push_back(GET);
 	loc1.allowedMethods.push_back(POST);
@@ -144,7 +212,7 @@ bool WebServer::Init(const std::string& configFile)
 	Server::Location loc2;
 	loc2.locUrl	   = "/old-page";
 	loc2.rootPath  = "";
-	loc2.indexFile = "";
+	loc2.indexPath = "";
 	loc2.autoIndex = false;
 	loc2.allowedMethods.push_back(GET);
 	loc2.hasRedirect   = true;
@@ -155,7 +223,7 @@ bool WebServer::Init(const std::string& configFile)
 	Server::Location loc3;
 	loc3.locUrl	   = "/upload";
 	loc3.rootPath  = "./www/uploads";
-	loc3.indexFile = "";
+	loc3.indexPath = "";
 	loc3.autoIndex = false;
 	loc3.allowedMethods.push_back(POST);
 	loc3.uploadEnabled = true;
@@ -165,7 +233,7 @@ bool WebServer::Init(const std::string& configFile)
 	Server::Location loc4;
 	loc4.locUrl	   = "/cgi-bin";
 	loc4.rootPath  = "./www/cgi-bin";
-	loc4.indexFile = "";
+	loc4.indexPath = "";
 	loc4.autoIndex = false;
 	loc4.allowedMethods.push_back(GET);
 	loc4.cgiExtension	   = ".py";
@@ -179,7 +247,7 @@ bool WebServer::Init(const std::string& configFile)
 	conf1.locations.push_back(loc3);
 	conf1.locations.push_back(loc4);
 	conf1.serverName = "loopback_server";
-	conf1.listens.push_back(std::make_pair("127.0.0.1", "8080"));
+	conf1.listens.push_back("127.0.0.1:8080");
 
 	Server::ServerConfig conf2;
 	conf2.locations.push_back(loc1);
@@ -187,7 +255,7 @@ bool WebServer::Init(const std::string& configFile)
 	conf2.locations.push_back(loc3);
 	conf2.locations.push_back(loc4);
 	conf2.serverName = "anyip_server";
-	conf2.listens.push_back(std::make_pair("0.0.0.0", "9080"));
+	conf2.listens.push_back("0.0.0.0:9080");
 
 	Server::ServerConfig conf3;
 	conf3.locations.push_back(loc1);
@@ -195,11 +263,7 @@ bool WebServer::Init(const std::string& configFile)
 	conf3.locations.push_back(loc3);
 	conf3.locations.push_back(loc4);
 	conf3.serverName = "localnet_server";
-	conf3.listens.push_back(std::make_pair("10.11.3.2", "4242"));
-
-	m_servers.push_back(new Server(conf1));
-	m_servers.push_back(new Server(conf2));
-	m_servers.push_back(new Server(conf3));
+	conf3.listens.push_back("10.11.3.2:4242");*/
 
 	for (size_t i = 0; i < m_servers.size(); ++i)
 		m_servers[i]->start();

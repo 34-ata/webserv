@@ -1,6 +1,6 @@
 CXX = c++
 
-CXXFLAGS += -Wall -Werror -Wextra -std=c++98 -MMD -MP
+CXXFLAGS += -g -Wall -Werror -Wextra -std=c++98 -MMD -MP
 
 CPPFLAGS += -I./includes
 

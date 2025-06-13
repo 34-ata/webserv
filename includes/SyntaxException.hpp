@@ -8,7 +8,7 @@
 #define UNEXPECTED(strGet, strExpect)                                                \
 	"Unexpected Token [" + strGet + "] expect [" + strExpect + "]"
 
-class SyntaxException : std::exception
+class SyntaxException : public std::exception
 {
   public:
 	SyntaxException(const std::string& token);
