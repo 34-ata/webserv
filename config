@@ -7,7 +7,7 @@ server {
     client_max_body_size 1000000;
 
     location / {
-        root /www;
+        root ./www;
         index index.html;
         autoindex off;
         methods GET POST;
