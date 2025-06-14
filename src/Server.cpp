@@ -416,6 +416,22 @@ void Server::handleDirectory(const Location& loc, std::string uri,
 	}
 }
 
+std::string joinPaths(const std::string& root, const std::string& sub)
+{
+	if (root.empty()) return sub;
+	if (sub.empty()) return root;
+
+	char lastRootChar = root[root.length() - 1];
+	char firstSubChar = sub[0];
+
+	if (lastRootChar == '/' && firstSubChar == '/')
+		return root + sub.substr(1);
+	else if (lastRootChar != '/' && firstSubChar != '/')
+		return root + "/" + sub;
+	else
+		return root + sub;
+}
+
 void Server::handleGetRequest(Request* req, const Location& loc)
 {
 	LOG("Started Handling GET Request");
@@ -423,8 +439,9 @@ void Server::handleGetRequest(Request* req, const Location& loc)
 	std::string uri = req->getPath();
 
 	std::string relativePath = uri.substr(loc.locUrl.length());
-	std::string filePath	 = loc.rootPath + relativePath;
+	std::string filePath     = joinPaths(loc.rootPath, relativePath);
 
+	LOG("Path: " << filePath);
 	if (!loc.cgiExtension.empty() && filePath.size() >= loc.cgiExtension.size()
 		&& filePath.compare(filePath.size() - loc.cgiExtension.size(),
 							loc.cgiExtension.size(), loc.cgiExtension)
@@ -442,6 +459,7 @@ void Server::handleGetRequest(Request* req, const Location& loc)
 
 	if (access(filePath.c_str(), F_OK) != 0)
 	{
+		LOG("deneme");
 		std::string notFound = "./www/404.html";
 		m_response			 = response.status(NOT_FOUND)
 						 .htppVersion(HTTP_VERSION)
