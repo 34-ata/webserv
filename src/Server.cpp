@@ -52,6 +52,7 @@ Server::ServerConfig::ServerConfig()
 	serverName			  = "";
 	clientMaxBodySize	  = 1000000;
 	errorPages[NOT_FOUND] = "404.html";
+	listens.push_back("0.0.0.0:8080");
 }
 
 Server::~Server()
@@ -112,7 +113,7 @@ void Server::start()
 	{
 		std::string ip		= this->m_listens[i].first;
 		std::string portStr = this->m_listens[i].second;
-		int port = std::atoi(portStr.c_str());
+		int port			= std::atoi(portStr.c_str());
 
 		int fd = socket(AF_INET, SOCK_STREAM, 0);
 		if (fd == -1)
@@ -636,13 +637,13 @@ std::vector< struct pollfd >& Server::getPollFds() { return pollFds; }
 
 Server::Location::Location()
 {
-	locUrl = "/";
+	locUrl	  = "/";
 	rootPath  = "";
 	indexPath = "index.html";
 	autoIndex = true;
 	allowedMethods.push_back(GET);
 	allowedMethods.push_back(POST);
 	allowedMethods.push_back(DELETE);
-	hasRedirect   = false;
+	hasRedirect	  = false;
 	uploadEnabled = false;
 }

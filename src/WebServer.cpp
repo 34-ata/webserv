@@ -164,6 +164,7 @@ Server::ServerConfig WebServer::createServerConfig(const ConfigBlock& server)
 			if (directive_args.size() < 1)
 				throw SyntaxException(server, directives[i],
 									  "Invalid usage of given directive.");
+			config.listens.clear();
 			for (size_t j = 0; j < directive_args.size(); j++)
 				config.listens.push_back(directive_args[j]);
 		}
