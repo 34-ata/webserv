@@ -55,6 +55,8 @@ bool isErrorCode(std::string code)
 Server::Location WebServer::createLocation(const ConfigBlock& location)
 {
 	Server::Location loc;
+	if (location.name == "location" && !location.args.empty())
+		loc.locUrl = location.args[0];
 	std::vector< ConfigDirective > directives = location.directives;
 	for (size_t i = 0; i < directives.size(); i++)
 	{
@@ -95,6 +97,40 @@ Server::Location WebServer::createLocation(const ConfigBlock& location)
 				loc.autoIndex = true;
 			else if (directive_args[0] == "off")
 				loc.autoIndex = false;
+		}
+		else if (directive_name == "return")
+		{
+			if (directive_args.size() != 2)
+				throw SyntaxException(location, directives[i], "Invalid usage of return directive.");
+
+			loc.hasRedirect = true;
+			loc.redirectCode = std::atoi(directive_args[0].c_str());
+			loc.redirectTo = directive_args[1];
+
+			if (loc.redirectCode < 300 || loc.redirectCode >= 400)
+				throw SyntaxException(location, directives[i], "Return code must be a 3xx redirect code.");
+		}
+		else if (directive_name == "cgi_extension")
+		{
+			if (directive_args.size() != 1)
+				throw SyntaxException(location, directives[i],
+									"Invalid usage of given directive.");
+			loc.cgiExtension = directive_args[0];
+		}
+		else if (directive_name == "cgi_path")
+		{
+			if (directive_args.size() != 1)
+				throw SyntaxException(location, directives[i],
+									"Invalid usage of given directive.");
+			loc.cgiExecutablePath = directive_args[0];
+		}
+		else if (directive_name == "upload_store")
+		{
+			if (directive_args.size() != 1)
+				throw SyntaxException(location, directives[i],
+									"Invalid usage of upload_store directive.");
+			loc.uploadEnabled = true;
+			loc.uploadPath = directive_args[0];
 		}
 	}
 	return loc;

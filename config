@@ -7,7 +7,7 @@ server {
     client_max_body_size 1000000;
 
     location / {
-        root ./www;
+        root /www;
         index index.html;
         autoindex off;
         methods GET POST;
@@ -15,9 +15,9 @@ server {
 
     location /upload {
         index index.html;
-        root /var/www/uploads;
+        root /www/uploads;
         methods POST;
-        upload_store /var/www/uploads;
+        upload_store ./www/uploads;
     }
 
     location /old-page {
@@ -25,14 +25,14 @@ server {
     }
 
     location /cgi-bin {
-        root /var/www/cgi-bin;
+        root /www/cgi-bin;
         cgi_extension .php;
         methods GET POST;
         cgi_path /usr/bin/php-cgi;
     }
 
     location /files {
-        root /var/www/files;
+        root /www/files;
         autoindex on;
         index index.html;
         methods GET;
@@ -43,7 +43,7 @@ server {
     server_name api.example.com;
 
     location / {
-        root /var/www/api;
+        root /www/api;
         index index.py;
         methods GET POST;
         cgi_extension .py;
@@ -56,7 +56,7 @@ server {
     listen 7090;
 
     location / {
-        root /var/www/alternate;
+        root /www/alternate;
         index index.html;
         autoindex off;
         methods GET;
