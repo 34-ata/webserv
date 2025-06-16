@@ -388,48 +388,62 @@ void Server::handleCgiOutput(std::string cgiOutput)
 	m_response = response.build();
 }
 
-void Server::handleDirectory(const Location& loc, std::string uri,
-							 std::string filePath)
-{
-	Response response;
-	if (!loc.indexPath.empty())
-	{
-		filePath += "/" + loc.indexPath;
-	}
-	else if (loc.autoIndex)
-	{
-		std::string listing = generateDirectoryListing(filePath, uri);
-		m_response			= response.status(OK)
-						 .htppVersion(HTTP_VERSION)
-						 .header("Content-Type", "text/html")
-						 .body(listing)
-						 .build();
-		return;
-	}
-	else
-	{
-		m_response = response.status(FORBIDDEN)
-						 .htppVersion(HTTP_VERSION)
-						 .body("403 Forbidden")
-						 .build();
-		return;
-	}
-}
-
 std::string joinPaths(const std::string& root, const std::string& sub)
 {
-	if (root.empty()) return sub;
-	if (sub.empty()) return root;
+	if (root.empty()) return "." + sub;
+	if (sub.empty()) return "." + root;
 
 	char lastRootChar = root[root.length() - 1];
 	char firstSubChar = sub[0];
 
 	if (lastRootChar == '/' && firstSubChar == '/')
-		return root + sub.substr(1);
+		return "." + root + sub.substr(1);
 	else if (lastRootChar != '/' && firstSubChar != '/')
-		return root + "/" + sub;
+		return "." + root + "/" + sub;
 	else
-		return root + sub;
+		return "." + root + sub;
+}
+
+void Server::handleDirectory(const Location& loc, std::string uri, std::string filePath)
+{
+	Response response;
+
+	if (!loc.indexPath.empty())
+	{
+		std::string indexFilePath = joinPaths(filePath, loc.indexPath);
+		if (access(indexFilePath.c_str(), F_OK) == 0)
+		{
+			m_response = response.status(OK)
+								 .htppVersion(HTTP_VERSION)
+								 .header("Content-Type", getContentType(indexFilePath))
+								 .body(getFileContent(indexFilePath))
+								 .build();
+		}
+		else
+		{
+			m_response = response.status(NOT_FOUND)
+								 .htppVersion(HTTP_VERSION)
+								 .body("404 Not Found: Index file not found")
+								 .build();
+		}
+		return;
+	}
+
+	if (loc.autoIndex)
+	{
+		std::string listing = generateDirectoryListing(filePath, uri);
+		m_response = response.status(OK)
+							 .htppVersion(HTTP_VERSION)
+							 .header("Content-Type", "text/html")
+							 .body(listing)
+							 .build();
+		return;
+	}
+
+	m_response = response.status(FORBIDDEN)
+						 .htppVersion(HTTP_VERSION)
+						 .body("403 Forbidden: Directory listing not allowed")
+						 .build();
 }
 
 void Server::handleGetRequest(Request* req, const Location& loc)
@@ -459,7 +473,6 @@ void Server::handleGetRequest(Request* req, const Location& loc)
 
 	if (access(filePath.c_str(), F_OK) != 0)
 	{
-		LOG("deneme");
 		std::string notFound = "./www/404.html";
 		m_response			 = response.status(NOT_FOUND)
 						 .htppVersion(HTTP_VERSION)
@@ -481,12 +494,31 @@ void Server::handlePostRequest(Request* req, const Location& loc)
 	LOG("Started Handling POST Request");
 	Response response;
 
-	if (!loc.uploadEnabled)
+	if (std::find(loc.allowedMethods.begin(), loc.allowedMethods.end(), POST) == loc.allowedMethods.end())
 	{
 		m_response = response.status(FORBIDDEN)
-						 .htppVersion(HTTP_VERSION)
-						 .body("403 Forbidden: Upload not allowed here.")
-						 .build();
+							 .htppVersion(HTTP_VERSION)
+							 .body("403 Forbidden: POST not allowed in this location.")
+							 .build();
+		return;
+	}
+
+	std::string path = joinPaths(loc.rootPath, req->getPath().substr(loc.locUrl.length()));
+	if (!loc.cgiExtension.empty()
+		&& path.size() >= loc.cgiExtension.size()
+		&& path.compare(path.size() - loc.cgiExtension.size(), loc.cgiExtension.size(), loc.cgiExtension) == 0)
+	{
+		handleCgiOutput(executeCgi(path, loc.cgiExecutablePath));
+		return;
+	}
+
+	LOG("uploadPath: " << loc.uploadPath);
+	if (loc.uploadPath.empty())
+	{
+		m_response = response.status(SERVER_ERROR)
+							 .htppVersion(HTTP_VERSION)
+							 .body("500 Internal Server Error: Upload path not configured.")
+							 .build();
 		return;
 	}
 
@@ -494,9 +526,9 @@ void Server::handlePostRequest(Request* req, const Location& loc)
 	if (body.empty())
 	{
 		m_response = response.status(BAD_REQ)
-						 .htppVersion(HTTP_VERSION)
-						 .body("400 Bad Request: No content to upload.")
-						 .build();
+							 .htppVersion(HTTP_VERSION)
+							 .body("400 Bad Request: No content to upload.")
+							 .build();
 		return;
 	}
 
@@ -508,9 +540,9 @@ void Server::handlePostRequest(Request* req, const Location& loc)
 	if (!file.is_open())
 	{
 		m_response = response.status(SERVER_ERROR)
-						 .htppVersion(HTTP_VERSION)
-						 .body("500 Internal Server Error: Cannot write file.")
-						 .build();
+							 .htppVersion(HTTP_VERSION)
+							 .body("500 Internal Server Error: Cannot write file.")
+							 .build();
 		return;
 	}
 
@@ -518,9 +550,9 @@ void Server::handlePostRequest(Request* req, const Location& loc)
 	file.close();
 
 	m_response = response.status(CREATED)
-					 .htppVersion(HTTP_VERSION)
-					 .body("201 Created: File uploaded successfully.\n")
-					 .build();
+						 .htppVersion(HTTP_VERSION)
+						 .body("201 Created: File uploaded successfully.\n")
+						 .build();
 }
 
 void Server::handleDeleteRequest(Request* req, const Location& loc)
@@ -530,7 +562,7 @@ void Server::handleDeleteRequest(Request* req, const Location& loc)
 
 	std::string uri			 = req->getPath();
 	std::string relativePath = uri.substr(loc.locUrl.length());
-	std::string filePath	 = loc.rootPath + relativePath;
+	std::string filePath = joinPaths(loc.rootPath, relativePath);
 
 	if (access(filePath.c_str(), F_OK) != 0)
 	{
@@ -585,7 +617,6 @@ const Server::Location* Server::matchLocation(const std::string& uri) const
 			}
 		}
 	}
-
 	return bestMatch;
 }
 
@@ -607,6 +638,23 @@ void Server::handleRequestTypes(Request* req)
 		m_response =
 			Response().htppVersion(HTTP_VERSION).status(NOT_FOUND).build();
 		return;
+	}
+
+	if (req->getMethod() == DELETE)
+	{
+		LOG("DELETE request received for URI: " << req->getPath());
+		LOG("Matched location: " << loc->locUrl);
+		LOG("Allowed methods for this location:");
+		for (size_t i = 0; i < loc->allowedMethods.size(); i++)
+		{
+			switch (loc->allowedMethods[i])
+			{
+			case GET: LOG(" - GET"); break;
+			case POST: LOG(" - POST"); break;
+			case DELETE: LOG(" - DELETE"); break;
+			default: LOG(" - Unknown method"); break;
+			}
+		}
 	}
 
 	if (std::find(loc->allowedMethods.begin(), loc->allowedMethods.end(),
