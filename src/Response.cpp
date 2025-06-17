@@ -47,7 +47,7 @@ Response& Response::body(std::string body)
 	return *this;
 }
 
-static std::string mapCodeToStr(ResponseCodes code)
+std::string Response::mapCodeToStr(ResponseCodes code)
 {
 	switch (code)
 	{
@@ -61,6 +61,10 @@ static std::string mapCodeToStr(ResponseCodes code)
 		return "Method Not Allowed";
 	case INT_SERV_ERR:
 		return "Internal Server Error";
+	case FORBIDDEN:
+		return "Forbidden";
+	case BAD_REQ:
+		return "Bad Request";
 	default:
 		return "INVALID";
 	}
