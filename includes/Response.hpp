@@ -21,6 +21,7 @@ class Response
 	Response& htppVersion(std::string htppVersion);
 	Response& header(std::string key, std::string value);
 	Response& body(std::string body);
+	static std::string mapCodeToStr(ResponseCodes code);
 	std::string build();
 
   private:

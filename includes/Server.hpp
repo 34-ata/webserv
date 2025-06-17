@@ -88,6 +88,7 @@ class Server
 						   const std::string& interpreter);
 	std::vector< std::pair< std::string, std::string > > getListens() const;
 	std::string getServerName() const;
+	std::string getErrorPageContent(ResponseCodes code);
 	void removePollFd(int fd);
 
   private:
