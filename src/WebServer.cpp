@@ -72,9 +72,6 @@ Server::Location WebServer::createLocation(const ConfigBlock& location)
 				loc.allowedMethods.push_back(
 					(HttpMethods)strToMethod(directive_args[j].c_str()));
 			}
-			for (size_t j = 0; j < loc.allowedMethods.size(); j++)
-				LOG(loc.allowedMethods[j]);
- 			LOG("\n" << "-----");
 		}
 		else if (directive_name == "root")
 		{

@@ -100,11 +100,6 @@ void Request::checkHeaders(std::stringstream& dataStream)
 			return;
 		}
 		value = line.substr(halfPos + 2, line.size() - halfPos - 3);
-		if (value.find(' ') != std::string::npos)
-		{
-			m_badRequest = true;
-			return;
-		}
 		m_headers[key] = value;
 	}
 }
