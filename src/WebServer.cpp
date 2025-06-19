@@ -68,8 +68,13 @@ Server::Location WebServer::createLocation(const ConfigBlock& location)
 				throw SyntaxException(location, directives[i],
 									  "Invalid usage of given directive.");
 			for (size_t j = 0; j < directive_args.size(); j++)
+			{
 				loc.allowedMethods.push_back(
-					(HttpMethods)std::atoi(directive_args[j].c_str()));
+					(HttpMethods)strToMethod(directive_args[j].c_str()));
+			}
+			for (size_t j = 0; j < loc.allowedMethods.size(); j++)
+				LOG(loc.allowedMethods[j]);
+ 			LOG("\n" << "-----");
 		}
 		else if (directive_name == "root")
 		{
@@ -101,38 +106,44 @@ Server::Location WebServer::createLocation(const ConfigBlock& location)
 		else if (directive_name == "return")
 		{
 			if (directive_args.size() != 2)
-				throw SyntaxException(location, directives[i], "Invalid usage of return directive.");
+				throw SyntaxException(location, directives[i],
+									  "Invalid usage of return directive.");
 
-			loc.hasRedirect = true;
+			loc.hasRedirect	 = true;
 			loc.redirectCode = std::atoi(directive_args[0].c_str());
-			loc.redirectTo = directive_args[1];
+			loc.redirectTo	 = directive_args[1];
 
 			if (loc.redirectCode < 300 || loc.redirectCode >= 400)
-				throw SyntaxException(location, directives[i], "Return code must be a 3xx redirect code.");
+				throw SyntaxException(
+					location, directives[i],
+					"Return code must be a 3xx redirect code.");
 		}
 		else if (directive_name == "cgi_extension")
 		{
 			if (directive_args.size() != 1)
 				throw SyntaxException(location, directives[i],
-									"Invalid usage of given directive.");
+									  "Invalid usage of given directive.");
 			loc.cgiExtension = directive_args[0];
 		}
 		else if (directive_name == "cgi_path")
 		{
 			if (directive_args.size() != 1)
 				throw SyntaxException(location, directives[i],
-									"Invalid usage of given directive.");
+									  "Invalid usage of given directive.");
 			loc.cgiExecutablePath = directive_args[0];
 		}
 		else if (directive_name == "upload_store")
 		{
 			if (directive_args.size() != 1)
-				throw SyntaxException(location, directives[i],
-									"Invalid usage of upload_store directive.");
+				throw SyntaxException(
+					location, directives[i],
+					"Invalid usage of upload_store directive.");
 			loc.uploadEnabled = true;
-			loc.uploadPath = directive_args[0];
+			loc.uploadPath	  = directive_args[0];
 		}
 	}
+	if (loc.allowedMethods.size() == 0)
+		loc.allowedMethods.push_back(GET);
 	return loc;
 }
 

@@ -746,9 +746,6 @@ Server::Location::Location()
 	rootPath  = "";
 	indexPath = "index.html";
 	autoIndex = true;
-	allowedMethods.push_back(GET);
-	allowedMethods.push_back(POST);
-	allowedMethods.push_back(DELETE);
 	hasRedirect	  = false;
 	uploadEnabled = false;
 }

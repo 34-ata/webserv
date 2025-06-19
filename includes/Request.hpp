@@ -33,9 +33,6 @@ class Request
 	void setBadRequest();
 
   private:
-	static HttpMethods strToMethod(const std::string& str);
-
-  private:
 	void requestLineIntegrity(std::stringstream& dataStream);
 	void checkHeaders(std::stringstream& dataStream);
 

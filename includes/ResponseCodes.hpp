@@ -6,10 +6,10 @@ enum ResponseCodes
 	OK			   = 200,
 	CREATED		   = 201,
 	BAD_REQ		   = 400,
+	FORBIDDEN      = 403,
 	NOT_FOUND	   = 404,
 	METH_NOT_ALLOW = 405,
 	INT_SERV_ERR   = 500,
-	FORBIDDEN      = 403,
 	SERVER_ERROR   = 500,
 };
 

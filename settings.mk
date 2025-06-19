@@ -26,6 +26,7 @@ FILES = main \
 		SyntaxException \
 		Response \
 		Request \
+		HttpMethods \
 
 SRCS = $(addsuffix .cpp, $(addprefix $S/, $(FILES)))
 
