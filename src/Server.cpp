@@ -682,6 +682,14 @@ void Server::handleRequestTypes(Request* req)
 		return;
 	}
 
+	if (req->getBodyLenght() > (size_t)std::atol(m_clientMaxBodySize.c_str()))
+	{
+		m_response = Response().htppVersion(HTTP_VERSION)
+							.status(ENTITY_TOO_LARGE)
+							.build();
+		return;
+	}
+
 	const Location* loc = matchLocation(req->getPath());
 
 	if (!loc)

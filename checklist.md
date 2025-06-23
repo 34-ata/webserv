@@ -2,6 +2,6 @@ CHECKLIST
 
 [] Server name.
 [] Keep alive.
-[] Client max body.
+[x] Client max body.
 [] Default error page.
-[] Chunked request (huge post request).
+[-] Chunked request (huge post request).

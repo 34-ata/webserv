@@ -3,14 +3,15 @@
 
 enum ResponseCodes
 {
-	OK			   = 200,
-	CREATED		   = 201,
-	BAD_REQ		   = 400,
-	FORBIDDEN      = 403,
-	NOT_FOUND	   = 404,
-	METH_NOT_ALLOW = 405,
-	INT_SERV_ERR   = 500,
-	SERVER_ERROR   = 500,
+	OK				 = 200,
+	CREATED			 = 201,
+	BAD_REQ			 = 400,
+	FORBIDDEN		 = 403,
+	NOT_FOUND		 = 404,
+	METH_NOT_ALLOW	 = 405,
+	ENTITY_TOO_LARGE = 413,
+	INT_SERV_ERR	 = 500,
+	SERVER_ERROR	 = 500,
 };
 
 #endif
