@@ -409,7 +409,6 @@ void Server::handleDirectory(const Location& loc, std::string uri, std::string f
 {
 	Response response;
 
-
 	if (!loc.indexPath.empty())
 	{
 		std::string indexFilePath = joinPaths(filePath, loc.indexPath);
@@ -422,6 +421,7 @@ void Server::handleDirectory(const Location& loc, std::string uri, std::string f
 									.header("Content-Type", getContentType(indexFilePath))
 									.body(getFileContent(indexFilePath))
 									.build();
+				return;
 			}
 			else
 			{
@@ -431,8 +431,8 @@ void Server::handleDirectory(const Location& loc, std::string uri, std::string f
 									.header("Content-Type", "text/html")
 									.body(errorBody)
 									.build();
+				return;
 			}
-			return;
 		}
 	}
 
@@ -447,13 +447,12 @@ void Server::handleDirectory(const Location& loc, std::string uri, std::string f
 		return;
 	}
 
-	std::string errorBody = getErrorPageContent(FORBIDDEN);
-	m_response = response.status(FORBIDDEN)
+	std::string errorBody = getErrorPageContent(NOT_FOUND);
+	m_response = response.status(NOT_FOUND)
 						.htppVersion(HTTP_VERSION)
 						.header("Content-Type", "text/html")
 						.body(errorBody)
 						.build();
-
 }
 
 std::string Server::getErrorPageContent(ResponseCodes code)
