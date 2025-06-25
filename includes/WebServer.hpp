@@ -22,7 +22,8 @@ class WebServer
   private:
 	void Parse(std::ifstream& fileIn);
 	void ParseServer(std::list< std::string >::const_iterator start,
-					 std::list< std::string >::const_iterator end);
+		std::list< std::string >::const_iterator end);
+	std::string parseHostHeader(int fd);
 	Server::ServerConfig createServerConfig(const ConfigBlock& server);
 	Server::Location createLocation(const ConfigBlock& location);
 
