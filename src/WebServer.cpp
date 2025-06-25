@@ -253,7 +253,7 @@ std::string WebServer::parseHostHeader(int fd)
 {
 	char buffer[1024];
 	memset(buffer, 0, sizeof(buffer));
-	recv(fd, buffer, sizeof(buffer) - 1, MSG_PEEK); // Veriyi okumadan kontrol et
+	recv(fd, buffer, sizeof(buffer) - 1, MSG_PEEK);
 
 	std::string data(buffer);
 	size_t hostPos = data.find("Host:");

@@ -36,6 +36,8 @@ void Request::setBadRequest() { this->m_badRequest = true; }
 
 void Request::fillRequest(const std::string& buffer) { m_data.append(buffer); }
 
+bool Request::shouldClose() const { return m_shouldClose; }
+
 void Request::requestLineIntegrity(std::stringstream& dataStream)
 {
 	std::string line;
@@ -109,6 +111,11 @@ void Request::checkIntegrity()
 	std::stringstream dataStream(m_data);
 	requestLineIntegrity(dataStream);
 	checkHeaders(dataStream);
+
+	std::map<std::string, std::string>::iterator it = m_headers.find("Connection");
+	std::string conn = (it != m_headers.end()) ? it->second : "";
+
+	m_shouldClose = (conn == "close");
 }
 
 Request& Request::operator=(const Request& other)

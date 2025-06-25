@@ -1,6 +1,6 @@
 CHECKLIST
 
-[] Server name.
+[x] Server name.
 [] Keep alive.
 [x] Client max body.
 [] Default error page.

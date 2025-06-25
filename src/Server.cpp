@@ -274,24 +274,33 @@ void Server::handleEvent(int fd)
 {
 	cache.str(std::string());
 	static Request* req = NULL;
+
 	connectIfNotConnected(fd);
 	fillCache(fd);
+
 	if (cache.str().find("\r\n\r\n") != std::string::npos || req != NULL)
 	{
 		if (req == NULL)
-		{
 			req = new Request();
-		}
+
 		deserializeRequest(req);
 
 		if (req->getBodyLenght() == req->getBody().size())
 		{
 			handleRequestTypes(req);
+
 			send(fd, m_response.c_str(), m_response.size(), 0);
-			close(fd);
+
+			if (req->shouldClose())
+			{
+				LOG("Closing connection with shutdown()");
+				shutdown(fd, SHUT_WR);
+				close(fd);
+				removePollFd(fd);
+			}
+
 			delete req;
 			req = NULL;
-			removePollFd(fd);
 		}
 	}
 }
