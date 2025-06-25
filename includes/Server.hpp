@@ -106,6 +106,7 @@ class Server
 };
 
 Server* findMatchingServer(const std::string& ip, int port,
-						   const std::vector< Server* >& servers);
+						   const std::vector< Server* >& servers,
+						   const std::string& hostHeader);
 
 #endif

@@ -243,77 +243,37 @@ bool WebServer::Init(const std::string& configFile)
 	}
 	fileIn.close();
 
-	/*Server::Location loc1;
-	loc1.locUrl	   = "/images";
-	loc1.rootPath  = "./www/images";
-	loc1.indexPath = "index.html";
-	loc1.autoIndex = true;
-	loc1.allowedMethods.push_back(GET);
-	loc1.allowedMethods.push_back(POST);
-	loc1.allowedMethods.push_back(DELETE);
-	loc1.hasRedirect   = false;
-	loc1.uploadEnabled = false;
-
-	Server::Location loc2;
-	loc2.locUrl	   = "/old-page";
-	loc2.rootPath  = "";
-	loc2.indexPath = "";
-	loc2.autoIndex = false;
-	loc2.allowedMethods.push_back(GET);
-	loc2.hasRedirect   = true;
-	loc2.redirectTo	   = "/new-page";
-	loc2.redirectCode  = 301;
-	loc2.uploadEnabled = false;
-
-	Server::Location loc3;
-	loc3.locUrl	   = "/upload";
-	loc3.rootPath  = "./www/uploads";
-	loc3.indexPath = "";
-	loc3.autoIndex = false;
-	loc3.allowedMethods.push_back(POST);
-	loc3.uploadEnabled = true;
-	loc3.uploadPath	   = "./www/uploads";
-	loc3.hasRedirect   = false;
-
-	Server::Location loc4;
-	loc4.locUrl	   = "/cgi-bin";
-	loc4.rootPath  = "./www/cgi-bin";
-	loc4.indexPath = "";
-	loc4.autoIndex = false;
-	loc4.allowedMethods.push_back(GET);
-	loc4.cgiExtension	   = ".py";
-	loc4.cgiExecutablePath = "/usr/bin/python3";
-	loc4.hasRedirect	   = false;
-	loc4.uploadEnabled	   = false;
-
-	Server::ServerConfig conf1;
-	conf1.locations.push_back(loc1);
-	conf1.locations.push_back(loc2);
-	conf1.locations.push_back(loc3);
-	conf1.locations.push_back(loc4);
-	conf1.serverName = "loopback_server";
-	conf1.listens.push_back("127.0.0.1:8080");
-
-	Server::ServerConfig conf2;
-	conf2.locations.push_back(loc1);
-	conf2.locations.push_back(loc2);
-	conf2.locations.push_back(loc3);
-	conf2.locations.push_back(loc4);
-	conf2.serverName = "anyip_server";
-	conf2.listens.push_back("0.0.0.0:9080");
-
-	Server::ServerConfig conf3;
-	conf3.locations.push_back(loc1);
-	conf3.locations.push_back(loc2);
-	conf3.locations.push_back(loc3);
-	conf3.locations.push_back(loc4);
-	conf3.serverName = "localnet_server";
-	conf3.listens.push_back("10.11.3.2:4242");*/
-
 	for (size_t i = 0; i < m_servers.size(); ++i)
 		m_servers[i]->start();
 
 	return true;
+}
+
+std::string WebServer::parseHostHeader(int fd)
+{
+	char buffer[1024];
+	memset(buffer, 0, sizeof(buffer));
+	recv(fd, buffer, sizeof(buffer) - 1, MSG_PEEK); // Veriyi okumadan kontrol et
+
+	std::string data(buffer);
+	size_t hostPos = data.find("Host:");
+	if (hostPos == std::string::npos)
+		return "";
+
+	size_t start = hostPos + 5;
+	while (start < data.size() && (data[start] == ' ' || data[start] == '\t'))
+		++start;
+
+	size_t end = data.find("\r\n", start);
+	if (end == std::string::npos)
+		return "";
+
+	std::string host = data.substr(start, end - start);
+	size_t colon = host.find(":");
+	if (colon != std::string::npos)
+		host = host.substr(0, colon);
+
+	return host;
 }
 
 void WebServer::Run()
@@ -356,7 +316,8 @@ void WebServer::Run()
 
 				int port = ntohs(addr.sin_port);
 
-				Server* matched = findMatchingServer(ip, port, m_servers);
+				std::string host = parseHostHeader(fds[i].fd);
+				Server* matched = findMatchingServer(ip, port, m_servers, host);
 				if (matched)
 					matched->handleEvent(fds[i].fd);
 			}

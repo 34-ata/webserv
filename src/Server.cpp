@@ -79,24 +79,44 @@ int getPortFromSocket(int fd)
 }
 
 Server* findMatchingServer(const std::string& ip, int port,
-						   const std::vector< Server* >& servers)
+						   const std::vector< Server* >& servers,
+						   const std::string& hostHeader)
 {
-	for (size_t i = 0; i < servers.size(); ++i)
-	{
-		const std::vector< std::pair< std::string, std::string > >& listens =
-			servers[i]->getListens();
-		for (size_t j = 0; j < listens.size(); ++j)
-		{
-			if (listens[j].first == ip
-				&& std::atoi(listens[j].second.c_str()) == port)
-				return servers[i];
-		}
-	}
+	std::vector<Server*> portMatches;
 
 	for (size_t i = 0; i < servers.size(); ++i)
 	{
 		const std::vector< std::pair< std::string, std::string > >& listens =
 			servers[i]->getListens();
+
+		for (size_t j = 0; j < listens.size(); ++j)
+		{
+			if (listens[j].first == ip
+				&& std::atoi(listens[j].second.c_str()) == port)
+			{
+				portMatches.push_back(servers[i]);
+				break;
+			}
+		}
+	}
+
+	if (!hostHeader.empty())
+	{
+		for (size_t i = 0; i < portMatches.size(); ++i)
+		{
+			if (portMatches[i]->getServerName() == hostHeader)
+				return portMatches[i];
+		}
+	}
+
+	if (!portMatches.empty())
+		return portMatches[0];
+
+	for (size_t i = 0; i < servers.size(); ++i)
+	{
+		const std::vector< std::pair< std::string, std::string > >& listens =
+			servers[i]->getListens();
+
 		for (size_t j = 0; j < listens.size(); ++j)
 		{
 			if (std::atoi(listens[j].second.c_str()) == port)
@@ -104,8 +124,12 @@ Server* findMatchingServer(const std::string& ip, int port,
 		}
 	}
 
-	return servers[0];
+	if (!servers.empty())
+		return servers[0];
+
+	return NULL;
 }
+
 
 void Server::start()
 {
