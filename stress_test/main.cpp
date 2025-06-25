@@ -1,134 +1,138 @@
 #include <chrono>
-#include <cstdlib>
-#include <cstring>
 #include <curl/curl.h>
 #include <fstream>
 #include <iostream>
 #include <mutex>
-#include <sstream>
+#include <random>
+#include <string>
 #include <thread>
 #include <vector>
 
 std::mutex log_mutex;
 
-void log_response(const std::string& log_line)
+// Struct to define each test case
+struct TestCase
 {
-	std::lock_guard< std::mutex > lock(log_mutex);
-	std::ofstream log_file("stress_test.log", std::ios::app);
-	log_file << log_line << std::endl;
-}
+	std::string method;	   // GET, POST, DELETE
+	std::string url;	   // Endpoint to request
+	std::string post_data; // For POST method
+	long expected_code;	   // Expected HTTP response code
+};
 
-size_t dummy_write(char* ptr, size_t size, size_t nmemb, void* userdata)
+// Dummy write callback (we discard response body)
+size_t write_callback(void* contents, size_t size, size_t nmemb, void* userp)
 {
+	(void)userp;
+	(void)contents;
 	return size * nmemb;
 }
 
-void perform_request(const std::string& method, const std::string& url,
-					 const std::string& post_data = "")
+// Perform HTTP request and return actual response code
+bool run_test(const TestCase& test, long& actual_code)
 {
 	CURL* curl = curl_easy_init();
 	if (!curl)
-		return;
+		return false;
 
-	curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
-	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION,
-					 dummy_write); // avoid stdout print
+	curl_easy_setopt(curl, CURLOPT_URL, test.url.c_str());
+	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
+	curl_easy_setopt(curl, CURLOPT_TIMEOUT, 5L);
 
-	if (method == "POST")
+	if (test.method == "POST")
 	{
 		curl_easy_setopt(curl, CURLOPT_POST, 1L);
-		curl_easy_setopt(curl, CURLOPT_POSTFIELDS, post_data.c_str());
-		curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, post_data.size());
+		curl_easy_setopt(curl, CURLOPT_POSTFIELDS, test.post_data.c_str());
+	}
+	else if (test.method == "DELETE")
+	{
+		curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "DELETE");
 	}
 
-	else if (method == "DELETE")
-		curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "DELETE");
-
-	long response_code = 0;
-	CURLcode res	   = curl_easy_perform(curl);
-
-	if (res == CURLE_OK)
-		curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &response_code);
-
-	std::stringstream log;
-	log << "[" << method << "] " << url << " - HTTP " << response_code;
+	CURLcode res = curl_easy_perform(curl);
 
 	if (res != CURLE_OK)
-		log << " - Error: " << curl_easy_strerror(res);
+	{
+		curl_easy_cleanup(curl);
+		return false;
+	}
 
-	log_response(log.str());
-
+	curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &actual_code);
 	curl_easy_cleanup(curl);
+	return true;
 }
 
-void stress_worker(const std::string& method, const std::vector< int >& ports,
-				   int requests_per_port, const std::string& post_payload)
+// Thread worker that randomly tests cases
+void test_worker(const std::vector< TestCase >& cases, int iterations,
+				 int thread_id)
 {
-	for (int i = 0; i < requests_per_port; ++i)
+	std::ofstream log_file("test_log.txt", std::ios::app);
+	if (!log_file.is_open())
 	{
-		for (int port : ports)
-		{
-			std::stringstream url;
-			url << "http://localhost:" << port;
-			if (method == "POST")
-				perform_request(method, url.str(), post_payload);
-			else
-				perform_request(method, url.str());
-		}
+		std::cerr << "Failed to open log file.\n";
+		return;
+	}
+
+	std::mt19937 rng(std::random_device{}());
+	std::uniform_int_distribution<> dist(0, cases.size() - 1);
+
+	for (int i = 0; i < iterations; ++i)
+	{
+		int idx				 = dist(rng);
+		const TestCase& test = cases[idx];
+
+		long actual_code = 0;
+		bool success	 = run_test(test, actual_code);
+
+		std::lock_guard< std::mutex > lock(log_mutex);
+		log_file << "[Thread " << thread_id << "] " << test.method << " "
+				 << test.url << " (expected: " << test.expected_code
+				 << ", got: "
+				 << (success ? std::to_string(actual_code) : "ERROR") << ") => "
+				 << ((success && actual_code == test.expected_code) ? "PASS"
+																	: "FAIL")
+				 << "\n";
 	}
 }
 
-std::string read_file(const std::string& path)
+int main()
 {
-	std::ifstream f(path, std::ios::binary);
-	if (!f)
-	{
-		std::cerr << "Failed to open file: " << path << std::endl;
-		return "";
-	}
-	std::stringstream buffer;
-	buffer << f.rdbuf();
-	return buffer.str();
-}
-
-int main(int argc, char* argv[])
-{
-	if (argc < 6)
-	{
-		std::cerr << "Usage: " << argv[0]
-				  << " GET|POST|DELETE requests_per_port file_for_post port1 "
-					 "port2 ...\n";
-		return 1;
-	}
-
-	std::string method	  = argv[1];
-	int requests_per_port = std::stoi(argv[2]);
-	std::string file_path = argv[3];
-
-	std::vector< int > ports;
-	for (int i = 4; i < argc; ++i)
-		ports.push_back(std::stoi(argv[i]));
-
-	for (auto& port : ports)
-		std::cout << port << std::endl;
-	std::string post_data;
-	if (method == "POST")
-		post_data = read_file(file_path);
-
 	curl_global_init(CURL_GLOBAL_ALL);
 
-	const int thread_count = 8;
-	std::vector< std::thread > threads;
+	std::vector< TestCase > tests = {
+		// GET requests
+		{"GET", "http://localhost:8080/", "", 200},
+		{"GET", "http://localhost:8080/unknown", "", 404},
+		{"GET", "http://localhost:8080/api/private", "", 403},
 
+		// POST requests
+		{"POST", "http://localhost:8080/api/data", "id=1&value=foo", 201},
+		{"POST", "http://localhost:8080/api/data", "", 400},
+		{"POST", "http://localhost:8080/api/upload", "file=abc", 200},
+		{"POST", "http://localhost:8080/invalid", "", 404},
+
+		// DELETE requests
+		//{"DELETE", "http://localhost:8080/api/data/1", "", 200},
+		//{"DELETE", "http://localhost:8080/api/data/999", "", 404},
+		//{"DELETE", "http://localhost:8080/api/readonly", "", 403},
+		//{"DELETE", "http://localhost:8080/api/data/", "", 400},
+	};
+
+	int thread_count		  = 4;
+	int iterations_per_thread = 20;
+
+	std::vector< std::thread > threads;
 	for (int i = 0; i < thread_count; ++i)
-		threads.emplace_back(stress_worker, method, ports,
-							 requests_per_port / thread_count, post_data);
+	{
+		threads.emplace_back(test_worker, std::cref(tests),
+							 iterations_per_thread, i);
+	}
 
 	for (auto& t : threads)
+	{
 		t.join();
+	}
 
 	curl_global_cleanup();
-
-	std::cout << "Stress test completed. Logs written to stress_test.log\n";
+	std::cout << "Testing complete. Check test_log.txt\n";
 	return 0;
 }

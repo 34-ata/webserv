@@ -1,5 +1,5 @@
 server {
-    listen 9090;
+    listen 8080;
     server_name localhost www.example.com;
     error_page 404 /errors/404.html;
     error_page 500 /errors/500.html;
@@ -10,14 +10,20 @@ server {
         root /www;
         index index.html;
         autoindex on;
-        methods GET POST;
+        methods GET;
     }
 
-    location /upload {
+	location /api {
+		root /www/api;
+		autoindex off;
+		methods GET DELETE POST;
+	}
+
+    location /api/upload {
         index index.html;
-        root /www/uploads;
+        root /www/upload;
         methods POST;
-        upload_store ./www/uploads;
+        upload_store ./www/upload;
     }
 
     location /old-page {
@@ -35,30 +41,6 @@ server {
         root /www/files;
         autoindex on;
         index index.html;
-        methods GET;
-    }
-}
-server {
-    listen 8080;
-    server_name api.example.com;
-
-    location / {
-        root /www/api;
-        index index.py;
-        methods GET POST;
-        cgi_extension .py;
-        cgi_path /usr/bin/python3;
-    }
-}
-
-server {
-    server_name api.example.com;
-    listen 7090;
-
-    location / {
-        root /www/alternate;
-        index index.html;
-        autoindex off;
         methods GET;
     }
 }

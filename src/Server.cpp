@@ -280,7 +280,8 @@ bool isDirectory(const std::string& path)
 	return S_ISDIR(statbuf.st_mode);
 }
 
-std::string Server::generateDirectoryListing(const std::string& path, const std::string& uri)
+std::string Server::generateDirectoryListing(const std::string& path,
+											 const std::string& uri)
 {
 	std::stringstream html;
 	DIR* dir = opendir(path.c_str());
@@ -391,8 +392,10 @@ void Server::handleCgiOutput(std::string cgiOutput)
 
 std::string joinPaths(const std::string& root, const std::string& sub)
 {
-	if (root.empty()) return sub;
-	if (sub.empty()) return root;
+	if (root.empty())
+		return sub;
+	if (sub.empty())
+		return root;
 
 	char lastRootChar = root[root.length() - 1];
 	char firstSubChar = sub[0];
@@ -405,7 +408,8 @@ std::string joinPaths(const std::string& root, const std::string& sub)
 		return root + sub;
 }
 
-void Server::handleDirectory(const Location& loc, std::string uri, std::string filePath)
+void Server::handleDirectory(const Location& loc, std::string uri,
+							 std::string filePath)
 {
 	Response response;
 
@@ -416,21 +420,22 @@ void Server::handleDirectory(const Location& loc, std::string uri, std::string f
 		{
 			if (access(indexFilePath.c_str(), R_OK) == 0)
 			{
-				m_response = response.status(OK)
-									.htppVersion(HTTP_VERSION)
-									.header("Content-Type", getContentType(indexFilePath))
-									.body(getFileContent(indexFilePath))
-									.build();
+				m_response =
+					response.status(OK)
+						.htppVersion(HTTP_VERSION)
+						.header("Content-Type", getContentType(indexFilePath))
+						.body(getFileContent(indexFilePath))
+						.build();
 				return;
 			}
 			else
 			{
 				std::string errorBody = getErrorPageContent(FORBIDDEN);
-				m_response = response.status(FORBIDDEN)
-									.htppVersion(HTTP_VERSION)
-									.header("Content-Type", "text/html")
-									.body(errorBody)
-									.build();
+				m_response			  = response.status(FORBIDDEN)
+								 .htppVersion(HTTP_VERSION)
+								 .header("Content-Type", "text/html")
+								 .body(errorBody)
+								 .build();
 				return;
 			}
 		}
@@ -439,36 +444,39 @@ void Server::handleDirectory(const Location& loc, std::string uri, std::string f
 	if (loc.autoIndex)
 	{
 		std::string listing = generateDirectoryListing(filePath, uri);
-		m_response = response.status(OK)
-							 .htppVersion(HTTP_VERSION)
-							 .header("Content-Type", "text/html")
-							 .body(listing)
-							 .build();
+		m_response			= response.status(OK)
+						 .htppVersion(HTTP_VERSION)
+						 .header("Content-Type", "text/html")
+						 .body(listing)
+						 .build();
 		return;
 	}
 
 	std::string errorBody = getErrorPageContent(NOT_FOUND);
-	m_response = response.status(NOT_FOUND)
-						.htppVersion(HTTP_VERSION)
-						.header("Content-Type", "text/html")
-						.body(errorBody)
-						.build();
+	m_response			  = response.status(NOT_FOUND)
+					 .htppVersion(HTTP_VERSION)
+					 .header("Content-Type", "text/html")
+					 .body(errorBody)
+					 .build();
 }
 
 std::string Server::getErrorPageContent(ResponseCodes code)
 {
-	std::map<ResponseCodes, std::string>::const_iterator it = m_errorPages.find(code);
+	std::map< ResponseCodes, std::string >::const_iterator it =
+		m_errorPages.find(code);
 	if (it != m_errorPages.end())
 	{
 		std::string fullPath = "." + it->second;
 		if (access(fullPath.c_str(), F_OK) == 0)
 			return getFileContent(fullPath);
 		else
-			return "<html><body><h1>" + Response::mapCodeToStr(code) + " (error page missing)</h1></body></html>";
+			return "<html><body><h1>" + Response::mapCodeToStr(code)
+				   + " (error page missing)</h1></body></html>";
 	}
 
 	std::stringstream ss;
-	ss << "<html><body><h1>" << static_cast<int>(code) << " " << Response::mapCodeToStr(code) << "</h1></body></html>";
+	ss << "<html><body><h1>" << static_cast< int >(code) << " "
+	   << Response::mapCodeToStr(code) << "</h1></body></html>";
 	return ss.str();
 }
 
@@ -479,7 +487,7 @@ void Server::handleGetRequest(Request* req, const Location& loc)
 	std::string uri = req->getPath();
 
 	std::string relativePath = uri.substr(loc.locUrl.length());
-	std::string filePath     = joinPaths("." + loc.rootPath, relativePath);
+	std::string filePath	 = joinPaths("." + loc.rootPath, relativePath);
 
 	if (!loc.cgiExtension.empty() && filePath.size() >= loc.cgiExtension.size()
 		&& filePath.compare(filePath.size() - loc.cgiExtension.size(),
@@ -488,7 +496,7 @@ void Server::handleGetRequest(Request* req, const Location& loc)
 	{
 		handleCgiOutput(executeCgi(filePath, loc.cgiExecutablePath));
 		return;
-	} 
+	}
 	if (isDirectory(filePath))
 	{
 		handleDirectory(loc, uri, filePath);
@@ -498,21 +506,21 @@ void Server::handleGetRequest(Request* req, const Location& loc)
 	if (access(filePath.c_str(), F_OK) != 0)
 	{
 		std::string errorBody = getErrorPageContent(NOT_FOUND);
-		m_response = response.status(NOT_FOUND)
-							.htppVersion(HTTP_VERSION)
-							.header("Content-Type", "text/html")
-							.body(errorBody)
-							.build();
+		m_response			  = response.status(NOT_FOUND)
+						 .htppVersion(HTTP_VERSION)
+						 .header("Content-Type", "text/html")
+						 .body(errorBody)
+						 .build();
 		return;
 	}
 	else if (access(filePath.c_str(), R_OK) != 0)
 	{
 		std::string errorBody = getErrorPageContent(FORBIDDEN);
-		m_response = response.status(FORBIDDEN)
-							.htppVersion(HTTP_VERSION)
-							.header("Content-Type", "text/html")
-							.body(errorBody)
-							.build();
+		m_response			  = response.status(FORBIDDEN)
+						 .htppVersion(HTTP_VERSION)
+						 .header("Content-Type", "text/html")
+						 .body(errorBody)
+						 .build();
 		return;
 	}
 
@@ -528,21 +536,24 @@ void Server::handlePostRequest(Request* req, const Location& loc)
 	LOG("Started Handling POST Request");
 	Response response;
 
-	if (std::find(loc.allowedMethods.begin(), loc.allowedMethods.end(), POST) == loc.allowedMethods.end())
+	if (std::find(loc.allowedMethods.begin(), loc.allowedMethods.end(), POST)
+		== loc.allowedMethods.end())
 	{
 		std::string errorBody = getErrorPageContent(FORBIDDEN);
-		m_response = response.status(FORBIDDEN)
-							 .htppVersion(HTTP_VERSION)
-							 .header("Content-Type", "text/html")
-							 .body(errorBody)
-							 .build();
+		m_response			  = response.status(FORBIDDEN)
+						 .htppVersion(HTTP_VERSION)
+						 .header("Content-Type", "text/html")
+						 .body(errorBody)
+						 .build();
 		return;
 	}
 
-	std::string path = joinPaths("." + loc.rootPath, req->getPath().substr(loc.locUrl.length()));
-	if (!loc.cgiExtension.empty()
-		&& path.size() >= loc.cgiExtension.size()
-		&& path.compare(path.size() - loc.cgiExtension.size(), loc.cgiExtension.size(), loc.cgiExtension) == 0)
+	std::string path = joinPaths("." + loc.rootPath,
+								 req->getPath().substr(loc.locUrl.length()));
+	if (!loc.cgiExtension.empty() && path.size() >= loc.cgiExtension.size()
+		&& path.compare(path.size() - loc.cgiExtension.size(),
+						loc.cgiExtension.size(), loc.cgiExtension)
+			   == 0)
 	{
 		handleCgiOutput(executeCgi(path, loc.cgiExecutablePath));
 		return;
@@ -552,11 +563,11 @@ void Server::handlePostRequest(Request* req, const Location& loc)
 	if (loc.uploadPath.empty())
 	{
 		std::string errorBody = getErrorPageContent(SERVER_ERROR);
-		m_response = response.status(SERVER_ERROR)
-							 .htppVersion(HTTP_VERSION)
-							 .header("Content-Type", "text/html")
-							 .body(errorBody)
-							 .build();
+		m_response			  = response.status(SERVER_ERROR)
+						 .htppVersion(HTTP_VERSION)
+						 .header("Content-Type", "text/html")
+						 .body(errorBody)
+						 .build();
 		return;
 	}
 
@@ -564,11 +575,11 @@ void Server::handlePostRequest(Request* req, const Location& loc)
 	if (body.empty())
 	{
 		std::string errorBody = getErrorPageContent(BAD_REQ);
-		m_response = response.status(BAD_REQ)
-							 .htppVersion(HTTP_VERSION)
-							 .header("Content-Type", "text/html")
-							 .body(errorBody)
-							 .build();
+		m_response			  = response.status(BAD_REQ)
+						 .htppVersion(HTTP_VERSION)
+						 .header("Content-Type", "text/html")
+						 .body(errorBody)
+						 .build();
 		return;
 	}
 
@@ -580,11 +591,11 @@ void Server::handlePostRequest(Request* req, const Location& loc)
 	if (!file.is_open())
 	{
 		std::string errorBody = getErrorPageContent(SERVER_ERROR);
-		m_response = response.status(SERVER_ERROR)
-							 .htppVersion(HTTP_VERSION)
-							 .header("Content-Type", "text/html")
-							 .body(errorBody)
-							 .build();
+		m_response			  = response.status(SERVER_ERROR)
+						 .htppVersion(HTTP_VERSION)
+						 .header("Content-Type", "text/html")
+						 .body(errorBody)
+						 .build();
 		return;
 	}
 
@@ -592,9 +603,9 @@ void Server::handlePostRequest(Request* req, const Location& loc)
 	file.close();
 
 	m_response = response.status(CREATED)
-						 .htppVersion(HTTP_VERSION)
-						 .body("201 Created: File uploaded successfully.\n")
-						 .build();
+					 .htppVersion(HTTP_VERSION)
+					 .body("201 Created: File uploaded successfully.\n")
+					 .build();
 }
 
 void Server::handleDeleteRequest(Request* req, const Location& loc)
@@ -604,26 +615,32 @@ void Server::handleDeleteRequest(Request* req, const Location& loc)
 
 	std::string uri			 = req->getPath();
 	std::string relativePath = uri.substr(loc.locUrl.length());
-	std::string filePath = joinPaths("." + loc.rootPath, relativePath);
+	std::string filePath	 = joinPaths("." + loc.rootPath, relativePath);
 
 	if (access(filePath.c_str(), F_OK) != 0)
 	{
 		std::string errorBody = getErrorPageContent(NOT_FOUND);
-		m_response = response.status(NOT_FOUND)
-							.htppVersion(HTTP_VERSION)
-							.header("Content-Type", "text/html")
-							.body(errorBody)
-							.build();
+		m_response			  = response.status(NOT_FOUND)
+						 .htppVersion(HTTP_VERSION)
+						 .header("Content-Type", "text/html")
+						 .body(errorBody)
+						 .build();
+		return;
+	}
+	if (access(filePath.c_str(), W_OK) != 0)
+	{
+		std::string errorBody = getErrorPageContent(FORBIDDEN);
+		m_response			  = response.status(FORBIDDEN)
+						 .htppVersion(HTTP_VERSION)
+						 .header("Content-Type", "text/html")
+						 .body(errorBody)
+						 .build();
 		return;
 	}
 	if (std::remove(filePath.c_str()) != 0)
 	{
-		std::string errorBody = getErrorPageContent(FORBIDDEN);
-		m_response = response.status(FORBIDDEN)
-							.htppVersion(HTTP_VERSION)
-							.header("Content-Type", "text/html")
-							.body(errorBody)
-							.build();
+		m_response =
+			response.status(INT_SERV_ERR).htppVersion(HTTP_VERSION).build();
 		return;
 	}
 
@@ -637,19 +654,19 @@ void Server::handleInvalidRequest()
 {
 	Response response;
 	std::string errorBody = getErrorPageContent(METH_NOT_ALLOW);
-	m_response = response.htppVersion(HTTP_VERSION)
-						 .status(METH_NOT_ALLOW)
-						 .header("Content-Type", "text/html")
-						 .body(errorBody)
-						 .build();
+	m_response			  = response.htppVersion(HTTP_VERSION)
+					 .status(METH_NOT_ALLOW)
+					 .header("Content-Type", "text/html")
+					 .body(errorBody)
+					 .build();
 }
 
 const Server::Location* Server::matchLocation(const std::string& uri) const
 {
 	const Location* bestMatch = NULL;
-	size_t bestLength = 0;
+	size_t bestLength		  = 0;
 
-	for (std::vector<Location>::const_iterator it = m_locations.begin();
+	for (std::vector< Location >::const_iterator it = m_locations.begin();
 		 it != m_locations.end(); ++it)
 	{
 		const std::string& locPath = it->locUrl;
@@ -660,7 +677,7 @@ const Server::Location* Server::matchLocation(const std::string& uri) const
 			{
 				if (locPath.length() > bestLength)
 				{
-					bestMatch = &(*it);
+					bestMatch  = &(*it);
 					bestLength = locPath.length();
 				}
 			}
@@ -674,19 +691,21 @@ void Server::handleRequestTypes(Request* req)
 	if (req->getBadRequest())
 	{
 		std::string errorBody = getErrorPageContent(BAD_REQ);
-		m_response = Response().htppVersion(HTTP_VERSION)
-							.status(BAD_REQ)
-							.header("Content-Type", "text/html")
-							.body(errorBody)
-							.build();
+		m_response			  = Response()
+						 .htppVersion(HTTP_VERSION)
+						 .status(BAD_REQ)
+						 .header("Content-Type", "text/html")
+						 .body(errorBody)
+						 .build();
 		return;
 	}
 
 	if (req->getBodyLenght() > (size_t)std::atol(m_clientMaxBodySize.c_str()))
 	{
-		m_response = Response().htppVersion(HTTP_VERSION)
-							.status(ENTITY_TOO_LARGE)
-							.build();
+		m_response = Response()
+						 .htppVersion(HTTP_VERSION)
+						 .status(ENTITY_TOO_LARGE)
+						 .build();
 		return;
 	}
 
@@ -695,11 +714,12 @@ void Server::handleRequestTypes(Request* req)
 	if (!loc)
 	{
 		std::string errorBody = getErrorPageContent(NOT_FOUND);
-		m_response = Response().htppVersion(HTTP_VERSION)
-							.status(NOT_FOUND)
-							.header("Content-Type", "text/html")
-							.body(errorBody)
-							.build();
+		m_response			  = Response()
+						 .htppVersion(HTTP_VERSION)
+						 .status(NOT_FOUND)
+						 .header("Content-Type", "text/html")
+						 .body(errorBody)
+						 .build();
 		return;
 	}
 
@@ -749,10 +769,10 @@ std::vector< struct pollfd >& Server::getPollFds() { return pollFds; }
 
 Server::Location::Location()
 {
-	locUrl	  = "/";
-	rootPath  = "";
-	indexPath = "index.html";
-	autoIndex = true;
+	locUrl		  = "/";
+	rootPath	  = "";
+	indexPath	  = "index.html";
+	autoIndex	  = true;
 	hasRedirect	  = false;
 	uploadEnabled = false;
 }
