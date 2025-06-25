@@ -31,12 +31,14 @@ class Request
 	size_t getBodyLenght() const;
 	bool getBadRequest() const;
 	void setBadRequest();
+	bool shouldClose() const;
 
   private:
 	void requestLineIntegrity(std::stringstream& dataStream);
 	void checkHeaders(std::stringstream& dataStream);
 
   private:
+	bool m_shouldClose;
 	std::string m_data;
 	HttpMethods m_method;
 	std::string m_path;
