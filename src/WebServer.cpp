@@ -20,6 +20,8 @@
 #include <sys/socket.h>
 #include <utility>
 #include <vector>
+#define TIMEOUT 5
+#define POLL_TIMEOUT 1000
 
 WebServer::WebServer()
 {
@@ -276,6 +278,34 @@ std::string WebServer::parseHostHeader(int fd)
 	return host;
 }
 
+void WebServer::checkTimeouts()
+{
+	time_t now = time(NULL);
+
+	for (size_t i = 0; i < m_servers.size(); ++i)
+	{
+		Server* server = m_servers[i];
+		std::map<int, Server::ConnectionState>& conns = server->getConnections();
+		std::vector<int> toClose;
+
+		for (std::map<int, Server::ConnectionState>::iterator it = conns.begin(); it != conns.end(); ++it)
+		{
+			LOG("TIME: " << difftime(now, it->second.timeStamp));
+			if (difftime(now, it->second.timeStamp) > TIMEOUT)
+				toClose.push_back(it->first);
+		}
+
+		for (size_t j = 0; j < toClose.size(); ++j)
+		{
+			int fd = toClose[j];
+			LOG("Timeout: closing fd " << fd);
+			close(fd);
+			server->removePollFd(fd);
+			conns.erase(fd);
+		}
+	}
+}
+
 void WebServer::Run()
 {
 	while (true)
@@ -288,13 +318,11 @@ void WebServer::Run()
 				m_servers[i]->getPollFds();
 			fds.insert(fds.end(), serverFds.begin(), serverFds.end());
 		}
-
-		if (poll(&fds[0], fds.size(), -1) < 0)
+		if (poll(&fds[0], fds.size(), POLL_TIMEOUT) < 0)
 		{
 			perror("poll");
 			break;
 		}
-
 		for (size_t i = 0; i < fds.size(); ++i)
 		{
 			if (fds[i].revents & POLLIN)
@@ -322,6 +350,7 @@ void WebServer::Run()
 					matched->handleEvent(fds[i].fd);
 			}
 		}
+		checkTimeouts();
 	}
 }
 

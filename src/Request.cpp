@@ -34,6 +34,16 @@ bool Request::getBadRequest() const { return this->m_badRequest; }
 
 void Request::setBadRequest() { this->m_badRequest = true; }
 
+time_t Request::getTimeStamp() const
+{
+	return m_timestamp;
+}
+
+void Request::setTimeStamp(time_t t)
+{
+	m_timestamp = t;
+}
+
 void Request::fillRequest(const std::string& buffer) { m_data.append(buffer); }
 
 bool Request::shouldClose() const { return m_shouldClose; }
@@ -126,7 +136,11 @@ Request& Request::operator=(const Request& other)
 	return *this;
 }
 
-Request::Request() : m_badRequest(false) {}
+Request::Request()
+{
+	m_badRequest = false;
+	m_timestamp = time(NULL);
+}
 
 Request::~Request() {}
 

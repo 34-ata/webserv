@@ -24,6 +24,7 @@ class WebServer
 	void ParseServer(std::list< std::string >::const_iterator start,
 		std::list< std::string >::const_iterator end);
 	std::string parseHostHeader(int fd);
+	void checkTimeouts();
 	Server::ServerConfig createServerConfig(const ConfigBlock& server);
 	Server::Location createLocation(const ConfigBlock& location);
 
