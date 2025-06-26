@@ -25,6 +25,9 @@
 #include <unistd.h>
 #include <utility>
 #include <vector>
+#define TIMEOUT 5
+
+Request* Server::m_req = NULL;
 
 Server::Server(const Server::ServerConfig& config)
 {
@@ -182,7 +185,7 @@ void Server::start()
 		pfd.events = POLLIN;
 
 		pollFds.push_back(pfd);
-		listenerFds.push_back(fd);
+		listenerFds.push_back(std::make_pair(fd, false));
 
 		std::cout << "Listening on " << ip << ":" << port << " (fd=" << fd
 				  << ")" << std::endl;
@@ -211,24 +214,29 @@ void Server::removePollFd(int fd)
 	}
 }
 
-void Server::connectIfNotConnected(int fd)
+bool Server::connectIfNotConnected(int fd)
 {
-	if (std::find(listenerFds.begin(), listenerFds.end(), fd)
-		!= listenerFds.end())
+	for (size_t i = 0; i < listenerFds.size(); ++i)
 	{
-		LOG("Added Socket to listenerFds.");
-		struct sockaddr_in clientAddr;
-		socklen_t len = sizeof(clientAddr);
-		int clientFd  = accept(fd, (struct sockaddr*)&clientAddr, &len);
-		if (clientFd >= 0)
+		if (listenerFds[i].first == fd && listenerFds[i].second == false)
 		{
-			fcntl(fd, F_SETFL, O_NONBLOCK);
-			struct pollfd clientPoll;
-			clientPoll.fd	  = clientFd;
-			clientPoll.events = POLLIN;
-			pollFds.push_back(clientPoll);
+			struct sockaddr_in clientAddr;
+			socklen_t len = sizeof(clientAddr);
+			int clientFd = accept(fd, (struct sockaddr*)&clientAddr, &len);
+			if (clientFd >= 0)
+			{
+				LOG("Accepted client connection");
+				fcntl(clientFd, F_SETFL, O_NONBLOCK);
+				struct pollfd clientPoll;
+				clientPoll.fd = clientFd;
+				clientPoll.events = POLLIN;
+				pollFds.push_back(clientPoll);
+				listenerFds[i].second = true;
+			}
+			return 1;
 		}
 	}
+	return 0;
 }
 
 void Server::fillCache(int fd)
@@ -240,67 +248,77 @@ void Server::fillCache(int fd)
 	{
 		buffer[bytes] = 0;
 		cache << buffer;
+		m_connections[fd].timeStamp = time(NULL);
 	}
 }
 
-Request* Server::deserializeRequest(Request* req)
+void Server::deserializeRequest()
 {
-	req->fillRequest(cache.str());
-	req->checkIntegrity();
-	return req;
+	m_req->fillRequest(cache.str());
+	m_req->checkIntegrity();
 }
 
-void Server::getHeader(Request* req)
+void Server::getHeader()
 {
 	bool headerFound = false;
 	std::string res;
 	while (std::getline(cache, res))
 	{
 		res.append("\n");
-		req->fillRequest(res);
-		if (req->getData().find("\r\n\r\n") != std::string::npos)
+		m_req->fillRequest(res);
+		if (m_req->getData().find("\r\n\r\n") != std::string::npos)
 		{
 			headerFound = true;
 			break;
 		}
 	}
 	if (!headerFound)
-		req->setBadRequest();
-	req->checkIntegrity();
+		m_req->setBadRequest();
+	m_req->checkIntegrity();
 	res.clear();
 }
 
 void Server::handleEvent(int fd)
 {
 	cache.str(std::string());
-	static Request* req = NULL;
+	
+	if (connectIfNotConnected(fd))
+		return;
 
-	connectIfNotConnected(fd);
+	ConnectionState& state = m_connections[fd];
+	m_req = state.req;
+
 	fillCache(fd);
-
-	if (cache.str().find("\r\n\r\n") != std::string::npos || req != NULL)
+	if (cache.str().find("\r\n\r\n") != std::string::npos || state.req != NULL)
 	{
-		if (req == NULL)
-			req = new Request();
-
-		deserializeRequest(req);
-
-		if (req->getBodyLenght() == req->getBody().size())
+		if (state.req == NULL)
 		{
-			handleRequestTypes(req);
+			state.req = new Request();
+			state.timeStamp = time(NULL);
+			m_req = state.req;
+		}
 
+		deserializeRequest();
+		if (m_req->getBodyLenght() == m_req->getBody().size())
+		{
+			handleRequestTypes();
 			send(fd, m_response.c_str(), m_response.size(), 0);
-
-			if (req->shouldClose())
+			if (m_req->shouldClose())
 			{
 				LOG("Closing connection with shutdown()");
 				shutdown(fd, SHUT_WR);
 				close(fd);
 				removePollFd(fd);
+				delete state.req;
+				m_connections.erase(fd);
+				m_req = NULL;
 			}
-
-			delete req;
-			req = NULL;
+			else
+			{
+				delete state.req;
+				state.req = NULL;
+				m_req = NULL;
+			}
 		}
 	}
 }
@@ -404,7 +422,10 @@ void Server::handleCgiOutput(std::string cgiOutput)
 	}
 
 	Response response;
-	response.status(OK).htppVersion(HTTP_VERSION).body(body);
+	response.status(OK)
+			.htppVersion(HTTP_VERSION)
+			.header("Connection", m_req->shouldClose() ? "close" : "keep-alive")
+			.body(body);
 
 	size_t ctPos = headers.find("Content-Type:");
 	if (ctPos != std::string::npos)
@@ -457,6 +478,7 @@ void Server::handleDirectory(const Location& loc, std::string uri,
 					response.status(OK)
 						.htppVersion(HTTP_VERSION)
 						.header("Content-Type", getContentType(indexFilePath))
+						.header("Connection", m_req->shouldClose() ? "close" : "keep-alive")
 						.body(getFileContent(indexFilePath))
 						.build();
 				return;
@@ -467,6 +489,7 @@ void Server::handleDirectory(const Location& loc, std::string uri,
 				m_response			  = response.status(FORBIDDEN)
 								 .htppVersion(HTTP_VERSION)
 								 .header("Content-Type", "text/html")
+								 .header("Connection", m_req->shouldClose() ? "close" : "keep-alive")
 								 .body(errorBody)
 								 .build();
 				return;
@@ -480,6 +503,7 @@ void Server::handleDirectory(const Location& loc, std::string uri,
 		m_response			= response.status(OK)
 						 .htppVersion(HTTP_VERSION)
 						 .header("Content-Type", "text/html")
+						 .header("Connection", m_req->shouldClose() ? "close" : "keep-alive")
 						 .body(listing)
 						 .build();
 		return;
@@ -489,6 +513,7 @@ void Server::handleDirectory(const Location& loc, std::string uri,
 	m_response			  = response.status(NOT_FOUND)
 					 .htppVersion(HTTP_VERSION)
 					 .header("Content-Type", "text/html")
+					 .header("Connection", m_req->shouldClose() ? "close" : "keep-alive")
 					 .body(errorBody)
 					 .build();
 }
@@ -513,11 +538,11 @@ std::string Server::getErrorPageContent(ResponseCodes code)
 	return ss.str();
 }
 
-void Server::handleGetRequest(Request* req, const Location& loc)
+void Server::handleGetRequest(const Location& loc)
 {
 	LOG("Started Handling GET Request");
 	Response response;
-	std::string uri = req->getPath();
+	std::string uri = m_req->getPath();
 
 	std::string relativePath = uri.substr(loc.locUrl.length());
 	std::string filePath	 = joinPaths("." + loc.rootPath, relativePath);
@@ -542,6 +567,7 @@ void Server::handleGetRequest(Request* req, const Location& loc)
 		m_response			  = response.status(NOT_FOUND)
 						 .htppVersion(HTTP_VERSION)
 						 .header("Content-Type", "text/html")
+						 .header("Connection", m_req->shouldClose() ? "close" : "keep-alive")
 						 .body(errorBody)
 						 .build();
 		return;
@@ -552,6 +578,7 @@ void Server::handleGetRequest(Request* req, const Location& loc)
 		m_response			  = response.status(FORBIDDEN)
 						 .htppVersion(HTTP_VERSION)
 						 .header("Content-Type", "text/html")
+						 .header("Connection", m_req->shouldClose() ? "close" : "keep-alive")
 						 .body(errorBody)
 						 .build();
 		return;
@@ -561,10 +588,11 @@ void Server::handleGetRequest(Request* req, const Location& loc)
 					 .htppVersion(HTTP_VERSION)
 					 .body(getFileContent(filePath))
 					 .header("Content-Type", getContentType(filePath))
+					 .header("Connection", m_req->shouldClose() ? "close" : "keep-alive")
 					 .build();
 }
 
-void Server::handlePostRequest(Request* req, const Location& loc)
+void Server::handlePostRequest(const Location& loc)
 {
 	LOG("Started Handling POST Request");
 	Response response;
@@ -576,13 +604,14 @@ void Server::handlePostRequest(Request* req, const Location& loc)
 		m_response			  = response.status(FORBIDDEN)
 						 .htppVersion(HTTP_VERSION)
 						 .header("Content-Type", "text/html")
+						 .header("Connection", m_req->shouldClose() ? "close" : "keep-alive")
 						 .body(errorBody)
 						 .build();
 		return;
 	}
 
 	std::string path = joinPaths("." + loc.rootPath,
-								 req->getPath().substr(loc.locUrl.length()));
+								 m_req->getPath().substr(loc.locUrl.length()));
 	if (!loc.cgiExtension.empty() && path.size() >= loc.cgiExtension.size()
 		&& path.compare(path.size() - loc.cgiExtension.size(),
 						loc.cgiExtension.size(), loc.cgiExtension)
@@ -599,18 +628,20 @@ void Server::handlePostRequest(Request* req, const Location& loc)
 		m_response			  = response.status(SERVER_ERROR)
 						 .htppVersion(HTTP_VERSION)
 						 .header("Content-Type", "text/html")
+						 .header("Connection", m_req->shouldClose() ? "close" : "keep-alive")
 						 .body(errorBody)
 						 .build();
 		return;
 	}
 
-	std::string body = req->getBody();
+	std::string body = m_req->getBody();
 	if (body.empty())
 	{
 		std::string errorBody = getErrorPageContent(BAD_REQ);
 		m_response			  = response.status(BAD_REQ)
 						 .htppVersion(HTTP_VERSION)
 						 .header("Content-Type", "text/html")
+						 .header("Connection", m_req->shouldClose() ? "close" : "keep-alive")
 						 .body(errorBody)
 						 .build();
 		return;
@@ -627,6 +658,7 @@ void Server::handlePostRequest(Request* req, const Location& loc)
 		m_response			  = response.status(SERVER_ERROR)
 						 .htppVersion(HTTP_VERSION)
 						 .header("Content-Type", "text/html")
+						 .header("Connection", m_req->shouldClose() ? "close" : "keep-alive")
 						 .body(errorBody)
 						 .build();
 		return;
@@ -637,16 +669,17 @@ void Server::handlePostRequest(Request* req, const Location& loc)
 
 	m_response = response.status(CREATED)
 					 .htppVersion(HTTP_VERSION)
+					 .header("Connection", m_req->shouldClose() ? "close" : "keep-alive")
 					 .body("201 Created: File uploaded successfully.\n")
 					 .build();
 }
 
-void Server::handleDeleteRequest(Request* req, const Location& loc)
+void Server::handleDeleteRequest(const Location& loc)
 {
 	LOG("Started Handling DELETE Request");
 	Response response;
 
-	std::string uri			 = req->getPath();
+	std::string uri			 = m_req->getPath();
 	std::string relativePath = uri.substr(loc.locUrl.length());
 	std::string filePath	 = joinPaths("." + loc.rootPath, relativePath);
 
@@ -656,6 +689,7 @@ void Server::handleDeleteRequest(Request* req, const Location& loc)
 		m_response			  = response.status(NOT_FOUND)
 						 .htppVersion(HTTP_VERSION)
 						 .header("Content-Type", "text/html")
+						 .header("Connection", m_req->shouldClose() ? "close" : "keep-alive")
 						 .body(errorBody)
 						 .build();
 		return;
@@ -666,19 +700,23 @@ void Server::handleDeleteRequest(Request* req, const Location& loc)
 		m_response			  = response.status(FORBIDDEN)
 						 .htppVersion(HTTP_VERSION)
 						 .header("Content-Type", "text/html")
+						 .header("Connection", m_req->shouldClose() ? "close" : "keep-alive")
 						 .body(errorBody)
 						 .build();
 		return;
 	}
 	if (std::remove(filePath.c_str()) != 0)
 	{
-		m_response =
-			response.status(INT_SERV_ERR).htppVersion(HTTP_VERSION).build();
+		m_response = response.status(INT_SERV_ERR)
+							.htppVersion(HTTP_VERSION)
+							.header("Connection", m_req->shouldClose() ? "close" : "keep-alive")
+							.build();
 		return;
 	}
 
 	m_response = response.status(OK)
 					 .htppVersion(HTTP_VERSION)
+					 .header("Connection", m_req->shouldClose() ? "close" : "keep-alive")
 					 .body("200 OK: File deleted successfully.\n")
 					 .build();
 }
@@ -690,6 +728,7 @@ void Server::handleInvalidRequest()
 	m_response			  = response.htppVersion(HTTP_VERSION)
 					 .status(METH_NOT_ALLOW)
 					 .header("Content-Type", "text/html")
+					 .header("Connection", m_req->shouldClose() ? "close" : "keep-alive")
 					 .body(errorBody)
 					 .build();
 }
@@ -719,30 +758,32 @@ const Server::Location* Server::matchLocation(const std::string& uri) const
 	return bestMatch;
 }
 
-void Server::handleRequestTypes(Request* req)
+void Server::handleRequestTypes()
 {
-	if (req->getBadRequest())
+	if (m_req->getBadRequest())
 	{
 		std::string errorBody = getErrorPageContent(BAD_REQ);
 		m_response			  = Response()
 						 .htppVersion(HTTP_VERSION)
 						 .status(BAD_REQ)
 						 .header("Content-Type", "text/html")
+						 .header("Connection", m_req->shouldClose() ? "close" : "keep-alive")
 						 .body(errorBody)
 						 .build();
 		return;
 	}
 
-	if (req->getBodyLenght() > (size_t)std::atol(m_clientMaxBodySize.c_str()))
+	if (m_req->getBodyLenght() > (size_t)std::atol(m_clientMaxBodySize.c_str()))
 	{
 		m_response = Response()
 						 .htppVersion(HTTP_VERSION)
 						 .status(ENTITY_TOO_LARGE)
+						 .header("Connection", m_req->shouldClose() ? "close" : "keep-alive")
 						 .build();
 		return;
 	}
 
-	const Location* loc = matchLocation(req->getPath());
+	const Location* loc = matchLocation(m_req->getPath());
 
 	if (!loc)
 	{
@@ -751,13 +792,14 @@ void Server::handleRequestTypes(Request* req)
 						 .htppVersion(HTTP_VERSION)
 						 .status(NOT_FOUND)
 						 .header("Content-Type", "text/html")
+						 .header("Connection", m_req->shouldClose() ? "close" : "keep-alive")
 						 .body(errorBody)
 						 .build();
 		return;
 	}
 
 	if (std::find(loc->allowedMethods.begin(), loc->allowedMethods.end(),
-				  req->getMethod())
+				  m_req->getMethod())
 		== loc->allowedMethods.end())
 	{
 		handleInvalidRequest();
@@ -769,21 +811,22 @@ void Server::handleRequestTypes(Request* req)
 		std::stringstream response;
 		response << "HTTP/1.1 " << loc->redirectCode << " Moved\r\n";
 		response << "Location: " << loc->redirectTo << "\r\n";
+		response << "Connection: " << (m_req->shouldClose() ? "close" : "keep-alive") << "\r\n";
 		response << "Content-Length: 0\r\n\r\n";
 		m_response = response.str();
 		return;
 	}
 
-	switch (req->getMethod())
+	switch (m_req->getMethod())
 	{
 	case GET:
-		handleGetRequest(req, *loc);
+		handleGetRequest(*loc);
 		break;
 	case POST:
-		handlePostRequest(req, *loc);
+		handlePostRequest(*loc);
 		break;
 	case DELETE:
-		handleDeleteRequest(req, *loc);
+		handleDeleteRequest(*loc);
 		break;
 	default:
 		handleInvalidRequest();
@@ -793,9 +836,10 @@ void Server::handleRequestTypes(Request* req)
 
 std::string Server::getServerName() const { return m_serverName; }
 
-std::vector< std::pair< std::string, std::string > > Server::getListens() const
+std::vector< std::pair< std::string, std::string > > Server::getListens() const { return m_listens; }
+std::map<int, Server::ConnectionState>& Server::getConnections()
 {
-	return m_listens;
+	return m_connections;
 }
 
 std::vector< struct pollfd >& Server::getPollFds() { return pollFds; }

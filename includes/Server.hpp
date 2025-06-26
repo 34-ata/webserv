@@ -58,6 +58,14 @@ class Server
 		bool autoIndex;
 	};
 
+	struct ConnectionState
+	{
+		Request* req;
+		time_t timeStamp;
+
+		ConnectionState() : req(NULL), timeStamp(time(NULL)) {}
+	};
+
 	Server();
 	Server(const ServerConfig& config);
 	~Server();
@@ -65,21 +73,20 @@ class Server
 	void start();
 
 	void handleEvent(int fd);
-	void handleRequestTypes(Request* req);
-	void handleGetRequest(Request* req, const Location& loc);
-	void handlePostRequest(Request* req, const Location& loc);
-	void handleDeleteRequest(Request* req, const Location& loc);
+	void handleRequestTypes();
+	void handleGetRequest(const Location& loc);
+	void handlePostRequest(const Location& loc);
+	void handleDeleteRequest(const Location& loc);
 	void handleInvalidRequest();
 	void handleCgiOutput(std::string cgiOutput);
 	void handleDirectory(const Location& loc, std::string uri,
 						 std::string filePath);
-	void getHeader(Request* req);
-
+	void getHeader();
 	bool ownsFd(int fd) const;
 	std::vector< struct pollfd >& getPollFds();
-	void connectIfNotConnected(int fd);
+	bool connectIfNotConnected(int fd);
 	void fillCache(int fd);
-	Request* deserializeRequest(Request* req);
+	void deserializeRequest();
 
 	const Server::Location* matchLocation(const std::string& uri) const;
 	std::string generateDirectoryListing(const std::string& path,
@@ -88,10 +95,14 @@ class Server
 						   const std::string& interpreter);
 	std::vector< std::pair< std::string, std::string > > getListens() const;
 	std::string getServerName() const;
+	std::map<int, ConnectionState>& getConnections();
 	std::string getErrorPageContent(ResponseCodes code);
 	void removePollFd(int fd);
 
   private:
+    static Request* m_req;
+	std::map<int, ConnectionState> m_connections;
+	std::map<int, time_t> m_lastActivity;
 	std::string m_serverName;
 	std::string m_clientMaxBodySize;
 	std::map< ResponseCodes, std::string > m_errorPages;
@@ -99,7 +110,7 @@ class Server
 	std::vector< std::pair< std::string, std::string > > m_listens;
 	bool m_isRunning;
 	std::vector< struct pollfd > pollFds;
-	std::vector< int > listenerFds;
+	std::vector< std::pair<int, bool> > listenerFds;
 	std::queue< Request* > requestQueue;
 	std::string m_response;
 	std::stringstream cache;

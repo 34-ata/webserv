@@ -32,12 +32,15 @@ class Request
 	bool getBadRequest() const;
 	void setBadRequest();
 	bool shouldClose() const;
+	time_t getTimeStamp() const;
+	void setTimeStamp(time_t t);
 
   private:
 	void requestLineIntegrity(std::stringstream& dataStream);
 	void checkHeaders(std::stringstream& dataStream);
 
   private:
+	time_t m_timestamp;
 	bool m_shouldClose;
 	std::string m_data;
 	HttpMethods m_method;
