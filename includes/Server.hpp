@@ -60,8 +60,9 @@ class Server
 
 	struct ConnectionState
 	{
-		Request* req;
-		time_t timeStamp;
+		Request*	req;
+		time_t		timeStamp;
+		int			listenerFd;
 
 		ConnectionState() : req(NULL), timeStamp(time(NULL)) {}
 	};
@@ -97,6 +98,7 @@ class Server
 	std::string getServerName() const;
 	std::map<int, ConnectionState>& getConnections();
 	std::string getErrorPageContent(ResponseCodes code);
+	void setListenerFds(int, bool);
 	void removePollFd(int fd);
 
   private:

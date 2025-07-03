@@ -287,6 +287,7 @@ void Server::handleEvent(int fd)
 
 	ConnectionState& state = m_connections[fd];
 	m_req = state.req;
+	state.listenerFd = fd - m_connections.size();
 
 	fillCache(fd);
 	if (cache.str().find("\r\n\r\n") != std::string::npos || state.req != NULL)
@@ -312,6 +313,7 @@ void Server::handleEvent(int fd)
 				delete state.req;
 				m_connections.erase(fd);
 				m_req = NULL;
+				setListenerFds(state.listenerFd, false);
 			}
 			else
 			{
@@ -837,6 +839,17 @@ void Server::handleRequestTypes()
 std::string Server::getServerName() const { return m_serverName; }
 
 std::vector< std::pair< std::string, std::string > > Server::getListens() const { return m_listens; }
+void Server::setListenerFds(int fd, bool value)
+{
+	for (int i = 0; i < (int)listenerFds.size(); i++)
+	{
+		if (listenerFds[i].first == fd)
+		{
+			listenerFds[i].second = value;
+			break ;
+		}
+	}
+}
 std::map<int, Server::ConnectionState>& Server::getConnections()
 {
 	return m_connections;
