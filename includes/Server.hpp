@@ -63,6 +63,8 @@ class Server
 		Request*	req;
 		time_t		timeStamp;
 		int			listenerFd;
+		std::string	response;
+		size_t		responseOffset;
 
 		ConnectionState() : req(NULL), timeStamp(time(NULL)) {}
 	};
@@ -73,7 +75,8 @@ class Server
 
 	void start();
 
-	void handleEvent(int fd);
+	void handleReadEvent(int fd);
+	void handleWriteEvent(int fd);
 	void handleRequestTypes();
 	void handleGetRequest(const Location& loc);
 	void handlePostRequest(const Location& loc);
@@ -88,6 +91,8 @@ class Server
 	bool connectIfNotConnected(int fd);
 	void fillCache(int fd);
 	void deserializeRequest();
+	void closeConnection(int fd);
+	void setPollout(int fd, bool enable);
 
 	const Server::Location* matchLocation(const std::string& uri) const;
 	std::string generateDirectoryListing(const std::string& path,

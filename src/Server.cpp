@@ -278,10 +278,70 @@ void Server::getHeader()
 	res.clear();
 }
 
-void Server::handleEvent(int fd)
+void Server::closeConnection(int fd)
+{
+	ConnectionState& state = m_connections[fd];
+	close(fd);
+	removePollFd(fd);
+	delete state.req;
+	m_connections.erase(fd);
+	m_req = NULL;
+	setListenerFds(state.listenerFd, false);
+}
+
+void Server::setPollout(int fd, bool enable)
+{
+	for (size_t i = 0; i < pollFds.size(); ++i)
+	{
+		if (pollFds[i].fd == fd)
+		{
+			if (enable)
+				pollFds[i].events |= POLLOUT;
+			else
+				pollFds[i].events &= ~POLLOUT;
+			break;
+		}
+	}
+}
+
+void Server::handleWriteEvent(int fd)
+{
+	ConnectionState& state = m_connections[fd];
+	const std::string& resp = state.response;
+	size_t& offset = state.responseOffset;
+
+	ssize_t sent = send(fd, resp.c_str() + offset, resp.size() - offset, 0);
+	if (sent <= 0)
+	{
+		closeConnection(fd);
+		return;
+	}
+
+	offset += sent;
+	if (offset >= resp.size())
+	{
+		if (state.req->shouldClose())
+		{
+			shutdown(fd, SHUT_WR);
+			closeConnection(fd);
+		}
+		else
+		{
+			delete state.req;
+			state.req = NULL;
+			state.response.clear();
+			offset = 0;
+			m_req = NULL;
+
+			setPollout(fd, false);
+		}
+	}
+}
+
+void Server::handleReadEvent(int fd)
 {
 	cache.str(std::string());
-	
+
 	if (connectIfNotConnected(fd))
 		return;
 
@@ -303,27 +363,14 @@ void Server::handleEvent(int fd)
 		if (m_req->getBodyLenght() == m_req->getBody().size())
 		{
 			handleRequestTypes();
-			send(fd, m_response.c_str(), m_response.size(), 0);
-			if (m_req->shouldClose())
-			{
-				LOG("Closing connection with shutdown()");
-				shutdown(fd, SHUT_WR);
-				close(fd);
-				removePollFd(fd);
-				delete state.req;
-				m_connections.erase(fd);
-				m_req = NULL;
-				setListenerFds(state.listenerFd, false);
-			}
-			else
-			{
-				delete state.req;
-				state.req = NULL;
-				m_req = NULL;
-			}
+			state.response = m_response;
+			state.responseOffset = 0;
+
+			setPollout(fd, true);
 		}
 	}
 }
+
 
 bool isDirectory(const std::string& path)
 {
