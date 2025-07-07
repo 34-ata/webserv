@@ -20,7 +20,7 @@
 #include <sys/socket.h>
 #include <utility>
 #include <vector>
-#define TIMEOUT 5
+#define TIMEOUT 30
 #define POLL_TIMEOUT 1000
 
 WebServer::WebServer()
@@ -290,7 +290,7 @@ void WebServer::checkTimeouts()
 
 		for (std::map<int, Server::ConnectionState>::iterator it = conns.begin(); it != conns.end(); ++it)
 		{
-			LOG("TIME: " << difftime(now, it->second.timeStamp));
+			//LOG("TIME: " << difftime(now, it->second.timeStamp));
 			if (difftime(now, it->second.timeStamp) > TIMEOUT)
 				toClose.push_back(it->first);
 		}
@@ -311,46 +311,51 @@ void WebServer::Run()
 {
 	while (true)
 	{
-		std::vector< struct pollfd > fds;
+		std::vector<struct pollfd> fds;
 
 		for (size_t i = 0; i < m_servers.size(); ++i)
 		{
-			const std::vector< struct pollfd >& serverFds =
+			const std::vector<struct pollfd>& serverFds =
 				m_servers[i]->getPollFds();
 			fds.insert(fds.end(), serverFds.begin(), serverFds.end());
 		}
-		if (poll(&fds[0], fds.size(), POLL_TIMEOUT) < 0)
+
+		if (poll(&fds[0], fds.size(), 0) < 0)
 		{
 			perror("poll");
 			break;
 		}
+
 		for (size_t i = 0; i < fds.size(); ++i)
 		{
-			if (fds[i].revents & POLLIN)
+			struct sockaddr_in addr;
+			socklen_t len = sizeof(addr);
+			if (getsockname(fds[i].fd, (struct sockaddr*)&addr, &len) == -1)
 			{
-				struct sockaddr_in addr;
-				socklen_t len = sizeof(addr);
-				if (getsockname(fds[i].fd, (struct sockaddr*)&addr, &len) == -1)
-				{
-					perror("getsockname");
-					continue;
-				}
-
-				char ip[INET_ADDRSTRLEN];
-				if (!inet_ntop(AF_INET, &addr.sin_addr, ip, sizeof(ip)))
-				{
-					perror("inet_ntop");
-					continue;
-				}
-
-				int port = ntohs(addr.sin_port);
-
-				std::string host = parseHostHeader(fds[i].fd);
-				Server* matched = findMatchingServer(ip, port, m_servers, host);
-				if (matched)
-					matched->handleEvent(fds[i].fd);
+				perror("getsockname");
+				continue;
 			}
+
+			char ip[INET_ADDRSTRLEN];
+			if (!inet_ntop(AF_INET, &addr.sin_addr, ip, sizeof(ip)))
+			{
+				perror("inet_ntop");
+				continue;
+			}
+
+			int port = ntohs(addr.sin_port);
+			std::string host = parseHostHeader(fds[i].fd);
+			Server* matched = findMatchingServer(ip, port, m_servers, host);
+			if (!matched)
+				continue;
+
+			if (fds[i].revents & POLLIN)
+				matched->handleReadEvent(fds[i].fd);
+
+			if (fds[i].revents & POLLOUT)
+				matched->handleWriteEvent(fds[i].fd);
 		}
+
 		checkTimeouts();
 	}
 }
