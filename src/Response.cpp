@@ -29,9 +29,9 @@ Response& Response::status(ResponseCodes status)
 	return *this;
 }
 
-Response& Response::htppVersion(std::string htppVersion)
+Response& Response::httpVersion(std::string httpVersion)
 {
-	m_htppVersion = htppVersion;
+	m_httpVersion = httpVersion;
 	return *this;
 }
 
@@ -79,7 +79,7 @@ std::string Response::build()
 		size << m_body.length();
 		m_headers["Content-Length"] = size.str();
 	}
-	response << m_htppVersion << " " << m_status << " "
+	response << m_httpVersion << " " << m_status << " "
 			 << mapCodeToStr(m_status) << "\r\n";
 	for (std::map< std::string, std::string >::iterator it = m_headers.begin();
 		 it != m_headers.end(); it++)

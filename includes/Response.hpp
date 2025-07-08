@@ -18,7 +18,7 @@ class Response
 
   public:
 	Response& status(ResponseCodes status);
-	Response& htppVersion(std::string htppVersion);
+	Response& httpVersion(std::string httpVersion);
 	Response& header(std::string key, std::string value);
 	Response& body(std::string body);
 	static std::string mapCodeToStr(ResponseCodes code);
@@ -26,7 +26,7 @@ class Response
 
   private:
 	ResponseCodes m_status;
-	std::string m_htppVersion;
+	std::string m_httpVersion;
 	std::map< std::string, std::string > m_headers;
 	std::string m_body;
 };
