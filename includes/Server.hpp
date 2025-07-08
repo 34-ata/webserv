@@ -65,6 +65,7 @@ class Server
 		int			listenerFd;
 		std::string	response;
 		size_t		responseOffset;
+		std::string cache;
 
 		ConnectionState() : req(NULL), timeStamp(time(NULL)) {}
 	};
@@ -77,20 +78,20 @@ class Server
 
 	void handleReadEvent(int fd);
 	void handleWriteEvent(int fd);
-	void handleRequestTypes();
-	void handleGetRequest(const Location& loc);
-	void handlePostRequest(const Location& loc);
-	void handleDeleteRequest(const Location& loc);
-	void handleInvalidRequest();
-	void handleCgiOutput(std::string cgiOutput);
-	void handleDirectory(const Location& loc, std::string uri,
-						 std::string filePath);
-	void getHeader();
+	void handleRequestTypes(int fd);
+	void handleGetRequest(const Location& loc, int fd);
+	void handlePostRequest(const Location& loc, int fd);
+	void handleDeleteRequest(const Location& loc, int fd);
+	void handleInvalidRequest(int fd);
+	void handleCgiOutput(int fd, std::string cgiOutput);
+	void handleDirectory(int fd, const Location& loc, std::string uri, std::string filePath);
+
+	void getHeader(ConnectionState& state);
 	bool ownsFd(int fd) const;
 	std::vector< struct pollfd >& getPollFds();
 	bool connectIfNotConnected(int fd);
 	void fillCache(int fd);
-	void deserializeRequest();
+	void deserializeRequest(ConnectionState& state);
 	void closeConnection(int fd);
 	void setPollout(int fd, bool enable);
 
@@ -107,7 +108,6 @@ class Server
 	void removePollFd(int fd);
 
   private:
-    static Request* m_req;
 	std::map<int, ConnectionState> m_connections;
 	std::map<int, time_t> m_lastActivity;
 	std::string m_serverName;
@@ -120,7 +120,6 @@ class Server
 	std::vector< std::pair<int, bool> > listenerFds;
 	std::queue< Request* > requestQueue;
 	std::string m_response;
-	std::stringstream cache;
 };
 
 Server* findMatchingServer(const std::string& ip, int port,
