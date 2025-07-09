@@ -21,9 +21,9 @@ server {
 
     location /api/upload {
         index index.html;
-        root /www/upload;
-        methods POST;
-        upload_store ./www/upload;
+        root /www/api/upload;
+        methods POST DELETE;
+        upload_store ./www/api/upload;
     }
 
     location /old-page {

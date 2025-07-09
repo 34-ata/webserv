@@ -249,6 +249,7 @@ void Server::fillCache(int fd)
     if (bytes > 0)
     {
         buffer[bytes] = 0;
+        state.cache.clear();
         state.cache.append(buffer, bytes);
         state.timeStamp = time(NULL);
     }
@@ -673,7 +674,6 @@ void Server::handlePostRequest(const Location& loc, int fd)
         return;
     }
 
-    LOG("uploadPath: " << loc.uploadPath);
     if (loc.uploadPath.empty())
     {
         std::string errorBody = getErrorPageContent(SERVER_ERROR);
@@ -841,7 +841,7 @@ void Server::handleRequestTypes(int fd)
         return;
     }
 
-    if (req->getBodyLenght() > (size_t)std::atol(m_clientMaxBodySize.c_str()))
+    if (req->getBodyLenght() > m_clientMaxBodySize)
     {
         m_response = Response()
                          .httpVersion(HTTP_VERSION)
