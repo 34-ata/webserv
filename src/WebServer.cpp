@@ -290,7 +290,7 @@ void WebServer::checkTimeouts()
 
 		for (std::map<int, Server::ConnectionState>::iterator it = conns.begin(); it != conns.end(); ++it)
 		{
-			LOG("TIME: " << difftime(now, it->second.timeStamp));
+			//LOG("TIME: " << difftime(now, it->second.timeStamp));
 			if (difftime(now, it->second.timeStamp) > TIMEOUT)
 				toClose.push_back(it->first);
 		}
