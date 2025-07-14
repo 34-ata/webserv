@@ -33,6 +33,7 @@ Server::Server(const Server::ServerConfig& config)
 	this->m_clientMaxBodySize = config.clientMaxBodySize;
 	this->m_errorPages		  = config.errorPages;
 	this->m_locations		  = config.locations;
+    this->m_rootPath          = config.rootPath;
 	for (size_t i = 0; i < config.listens.size(); i++)
 	{
 		size_t seperaterPos = config.listens[i].find(':');
@@ -574,7 +575,7 @@ std::string Server::getErrorPageContent(ResponseCodes code)
 		m_errorPages.find(code);
 	if (it != m_errorPages.end())
 	{
-		std::string fullPath = "." + it->second;
+		std::string fullPath = "." + m_rootPath + it->second;
 		if (access(fullPath.c_str(), F_OK) == 0)
 			return getFileContent(fullPath);
 		else
