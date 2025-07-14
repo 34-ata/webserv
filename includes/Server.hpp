@@ -111,6 +111,7 @@ class Server
 	std::map<int, ConnectionState> m_connections;
 	std::map<int, time_t> m_lastActivity;
 	std::string m_serverName;
+	std::string m_rootPath;
 	size_t m_clientMaxBodySize;
 	std::map< ResponseCodes, std::string > m_errorPages;
 	std::vector< Location > m_locations;
