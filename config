@@ -1,6 +1,6 @@
 server {
     listen 8080;
-    server_name localhost www.example.com;
+    server_name localhost;
     error_page 404 /errors/404.html;
     error_page 500 /errors/500.html;
     index index.html;
@@ -9,38 +9,20 @@ server {
     location / {
         root /www;
         index index.html;
-        autoindex on;
+        autoindex off;
         methods GET;
     }
 
-	location /api {
-		root /www/api;
-		autoindex off;
-		methods GET DELETE POST;
-	}
-
-    location /api/upload {
-        index index.html;
-        root /www/api/upload;
-        methods POST DELETE;
-        upload_store ./www/api/upload;
-    }
-
-    location /old-page {
-        return 301 http://www.example.com/new-page;
-    }
-
     location /cgi-bin {
-        root /www/cgi-bin;
-        cgi_extension .php;
-        methods GET POST;
-        cgi_path /usr/bin/php-cgi;
-    }
+    root /www/cgi-bin;
+    cgi_extension .py;
+    methods GET POST;
+    cgi_path /usr/bin/python3;
+}
 
-    location /files {
-        root /www/files;
-        autoindex on;
-        index index.html;
+
+    location /errors {
+        root /www;
         methods GET;
     }
 }

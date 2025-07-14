@@ -802,17 +802,17 @@ const Server::Location* Server::matchLocation(const std::string& uri) const
 	{
 		const std::string& locPath = it->locUrl;
 		if (uri.find(locPath) == 0)
-		{
-			if (uri.length() == locPath.length()
-				|| uri[locPath.length()] == '/')
-			{
-				if (locPath.length() > bestLength)
-				{
-					bestMatch  = &(*it);
-					bestLength = locPath.length();
-				}
-			}
-		}
+        {
+            if (locPath == "/" || uri.length() == locPath.length()
+                || uri[locPath.length()] == '/')
+            {
+                if (locPath.length() > bestLength)
+                {
+                    bestMatch  = &(*it);
+                    bestLength = locPath.length();
+                }
+            }
+        }
 	}
 	return bestMatch;
 }
