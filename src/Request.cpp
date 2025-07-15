@@ -14,6 +14,14 @@ std::string Request::getVersion() const { return m_httpVersion; }
 
 const std::string& Request::getData() const { return m_data; }
 
+std::string Request::getContentType() const {
+	std::map<std::string, std::string>::const_iterator it = m_headers.find("Content-Type");
+	if (it != m_headers.end())
+		return it->second;
+	return "text/plain"; // varsayılan değer
+}
+
+
 std::string Request::getBody() const
 {
 	size_t headerEnd = m_data.find("\r\n\r\n");

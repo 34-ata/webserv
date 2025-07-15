@@ -117,7 +117,7 @@ Server* findMatchingServer(const std::string& ip, int port,
 	for (size_t i = 0; i < servers.size(); ++i)
 	{
 		const std::vector< std::pair< std::string, std::string > >& listens =
-			servers[i]->getListens();
+			servers[i]->getListens(); 
 
 		for (size_t j = 0; j < listens.size(); ++j)
 		{
@@ -131,7 +131,6 @@ Server* findMatchingServer(const std::string& ip, int port,
 
 	return NULL;
 }
-
 
 void Server::start()
 {
@@ -410,45 +409,84 @@ std::string Server::generateDirectoryListing(const std::string& path,
 }
 
 std::string Server::executeCgi(const std::string& scriptPath,
-							   const std::string& interpreter)
+                               const std::string& interpreter,
+                               const Request& req)
 {
-	int pipefd[2];
-	if (pipe(pipefd) == -1)
-		return "CGI error: pipe() failed\n";
+    int inputPipe[2];  // parent → child (stdin)
+    int outputPipe[2]; // child → parent (stdout)
 
-	pid_t pid = fork();
-	if (pid == -1)
-		return "CGI error: fork() failed\n";
+    if (pipe(inputPipe) == -1 || pipe(outputPipe) == -1)
+        return "CGI error: pipe() failed\n";
 
-	if (pid == 0)
-	{
-		close(pipefd[0]);
-		dup2(pipefd[1], STDOUT_FILENO);
-		close(pipefd[1]);
+    pid_t pid = fork();
+    if (pid == -1)
+        return "CGI error: fork() failed\n";
 
-		char* args[] = {const_cast< char* >(interpreter.c_str()),
-						const_cast< char* >(scriptPath.c_str()), NULL};
+    if (pid == 0)
+    {
+        // child process
+        close(inputPipe[1]);
+        close(outputPipe[0]);
+        dup2(inputPipe[0], STDIN_FILENO);
+        dup2(outputPipe[1], STDOUT_FILENO);
+        close(inputPipe[0]);
+        close(outputPipe[1]);
 
-		char* env[] = {const_cast< char* >("GATEWAY_INTERFACE=CGI/1.1"),
-					   const_cast< char* >("SERVER_PROTOCOL=HTTP/1.1"), NULL};
+        // set working directory
+        //size_t lastSlash = scriptPath.find_last_of('/');
+        //if (lastSlash != std::string::npos)
+        //    chdir(scriptPath.substr(0, lastSlash).c_str());
 
-		execve(args[0], args, env);
-		perror("execve");
-		exit(1);
-	}
+        std::string method = req.getMethod() == POST ? "POST" : "GET";
+        std::stringstream ss;
+        ss << req.getBody().size();
+        std::string contentLength = ss.str();
+        std::string contentType = req.getContentType();
 
-	close(pipefd[1]);
-	std::string output;
-	char buffer[1024];
-	ssize_t bytesRead;
+        // prepare environment
+        std::vector<std::string> env;
+        env.push_back("GATEWAY_INTERFACE=CGI/1.1");
+        env.push_back("SERVER_PROTOCOL=HTTP/1.1");
+        env.push_back("REQUEST_METHOD=" + method);
+        env.push_back("SCRIPT_NAME=" + scriptPath);
+        env.push_back("PATH_INFO=" + scriptPath);
+        env.push_back("CONTENT_LENGTH=" + contentLength);
+        env.push_back("CONTENT_TYPE=" + contentType);
 
-	while ((bytesRead = read(pipefd[0], buffer, sizeof(buffer))) > 0)
-		output.append(buffer, bytesRead);
+        std::vector<char*> envp;
+        for (size_t i = 0; i < env.size(); ++i)
+            envp.push_back(const_cast<char*>(env[i].c_str()));
+        envp.push_back(NULL);
 
-	close(pipefd[0]);
-	waitpid(pid, NULL, 0);
+        char* args[] = {
+            const_cast<char*>(interpreter.c_str()),
+            const_cast<char*>(scriptPath.c_str()),
+            NULL};
+        
+        execve(args[0], args, &envp[0]);
+        perror("execve");
+        exit(1);
+    }
 
-	return output;
+    // parent process
+    close(inputPipe[0]);
+    close(outputPipe[1]);
+
+    if (!req.getBody().empty())
+        write(inputPipe[1], req.getBody().c_str(), req.getBody().size());
+
+    close(inputPipe[1]);
+
+    std::string output;
+    char buffer[1024];
+    ssize_t bytesRead;
+    while ((bytesRead = read(outputPipe[0], buffer, sizeof(buffer))) > 0)
+        output.append(buffer, bytesRead);
+
+    close(outputPipe[0]);
+    waitpid(pid, NULL, 0);
+
+    return output;
 }
 
 void Server::handleCgiOutput(int fd, std::string cgiOutput)
@@ -456,18 +494,18 @@ void Server::handleCgiOutput(int fd, std::string cgiOutput)
     ConnectionState& state = m_connections[fd];
     Request* req = state.req;
 
-    size_t headerEnd = cgiOutput.find("\r\n\r\n");
-    if (headerEnd == std::string::npos)
-        headerEnd = cgiOutput.find("\n\n");
+    std::string delimiter = "\r\n\r\n";
+    size_t headerEnd = cgiOutput.find(delimiter);
+    if (headerEnd == std::string::npos) {
+        delimiter = "\n\n";
+        headerEnd = cgiOutput.find(delimiter);
+    }
 
     std::string headers, body;
-    if (headerEnd != std::string::npos)
-    {
+    if (headerEnd != std::string::npos) {
         headers = cgiOutput.substr(0, headerEnd);
-        body = cgiOutput.substr(headerEnd + (cgiOutput[headerEnd] == '\r' ? 4 : 2));
-    }
-    else
-    {
+        body = cgiOutput.substr(headerEnd + delimiter.size());
+    } else {
         body = cgiOutput;
     }
 
@@ -478,21 +516,26 @@ void Server::handleCgiOutput(int fd, std::string cgiOutput)
             .body(body);
 
     size_t ctPos = headers.find("Content-Type:");
-    if (ctPos != std::string::npos)
-    {
+    if (ctPos != std::string::npos) {
         size_t endLine = headers.find('\n', ctPos);
         std::string ctLine = headers.substr(ctPos, endLine - ctPos);
         size_t sep = ctLine.find(":");
-        if (sep != std::string::npos)
-        {
+        if (sep != std::string::npos) {
             std::string value = ctLine.substr(sep + 1);
             while (!value.empty() && (value[0] == ' ' || value[0] == '\t'))
                 value.erase(0, 1);
             response.header("Content-Type", value);
         }
+    } else {
+        response.header("Content-Type", "text/html");
     }
 
     m_response = response.build();
+
+    // Eğer buradan çağrılmıyorsa bu kısımlar handleRequestTypes içinde çağrılmalı
+    state.response = m_response;
+    state.responseOffset = 0;
+    setPollout(fd, true);
 }
 
 std::string joinPaths(const std::string& root, const std::string& sub)
@@ -599,12 +642,12 @@ void Server::handleGetRequest(const Location& loc, int fd)
     std::string uri = req->getPath();
     std::string relativePath = uri.substr(loc.locUrl.length());
     std::string filePath = joinPaths("." + loc.rootPath, relativePath);
-
+    
     if (!loc.cgiExtension.empty() && filePath.size() >= loc.cgiExtension.size()
-        && filePath.compare(filePath.size() - loc.cgiExtension.size(),
+    && filePath.compare(filePath.size() - loc.cgiExtension.size(),
                             loc.cgiExtension.size(), loc.cgiExtension) == 0)
     {
-        handleCgiOutput(fd, executeCgi(filePath, loc.cgiExecutablePath));
+        handleCgiOutput(fd, executeCgi(filePath, "/usr/bin/python3", *req));
         return;
     }
     if (isDirectory(filePath))
@@ -612,7 +655,7 @@ void Server::handleGetRequest(const Location& loc, int fd)
         handleDirectory(fd, loc, uri, filePath);
         return;
     }
-
+    
     if (access(filePath.c_str(), F_OK) != 0)
     {
         std::string errorBody = getErrorPageContent(NOT_FOUND);
@@ -622,18 +665,18 @@ void Server::handleGetRequest(const Location& loc, int fd)
             .header("Connection", req->shouldClose() ? "close" : "keep-alive")
             .body(errorBody)
             .build();
-        return;
+            return;
     }
     else if (access(filePath.c_str(), R_OK) != 0)
     {
         std::string errorBody = getErrorPageContent(FORBIDDEN);
         m_response = response.status(FORBIDDEN)
-            .httpVersion(HTTP_VERSION)
+        .httpVersion(HTTP_VERSION)
             .header("Content-Type", "text/html")
             .header("Connection", req->shouldClose() ? "close" : "keep-alive")
             .body(errorBody)
             .build();
-        return;
+            return;
     }
 
     m_response = response.status(OK)
@@ -671,7 +714,7 @@ void Server::handlePostRequest(const Location& loc, int fd)
         && path.compare(path.size() - loc.cgiExtension.size(),
                         loc.cgiExtension.size(), loc.cgiExtension) == 0)
     {
-        handleCgiOutput(fd, executeCgi(path, loc.cgiExecutablePath));
+        handleCgiOutput(fd, executeCgi(path, "/usr/bin/python3", *req));
         return;
     }
 
