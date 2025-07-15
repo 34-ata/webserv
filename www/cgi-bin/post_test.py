@@ -5,5 +5,5 @@ data = sys.stdin.read()
 
 print("Content-Type: text/plain")
 print()
-print("POST isteği alındı:\n")
+print("POST request received:\n")
 print(data)

@@ -137,8 +137,7 @@ void Server::start()
 	for (size_t i = 0; i < this->m_listens.size(); ++i)
 	{
 		std::string ip		= this->m_listens[i].first;
-		std::string portStr = this->m_listens[i].second;
-		int port			= std::atoi(portStr.c_str());
+		int port			= std::atoi(this->m_listens[i].second.c_str());
 
 		int fd = socket(AF_INET, SOCK_STREAM, 0);
 		if (fd == -1)
@@ -589,6 +588,17 @@ void Server::handleDirectory(int fd, const Location& loc, std::string uri, std::
                 return;
             }
         }
+        else if (!loc.autoIndex)
+        {
+            std::string errorBody = getErrorPageContent(FORBIDDEN);
+            m_response = response.status(FORBIDDEN)
+                            .httpVersion(HTTP_VERSION)
+                            .header("Content-Type", "text/html")
+                            .header("Connection", req->shouldClose() ? "close" : "keep-alive")
+                            .body(errorBody)
+                            .build();
+            return;
+        }
     }
 
     if (loc.autoIndex)
@@ -972,7 +982,7 @@ Server::Location::Location()
 	locUrl		  = "/";
 	rootPath	  = "";
 	indexPath	  = "index.html";
-	autoIndex	  = true;
+	autoIndex	  = false;
 	hasRedirect	  = false;
 	uploadEnabled = false;
 }

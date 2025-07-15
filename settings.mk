@@ -19,7 +19,6 @@ B = ./bin
 D = ./dep
 
 FILES = main \
-		Socket \
 		Server \
 		WebServer \
 		Tokenizer \
