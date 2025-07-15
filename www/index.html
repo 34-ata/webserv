@@ -14,10 +14,41 @@
       <a href="contact.html">Contact</a>
     </nav>
   </header>
+
   <main>
     <p>This is a simple static website served by WebServ.</p>
     <img src="images/logo.png" alt="Site Logo" width="150">
+
+    <h2>CGI Çıktısı</h2>
+    <div id="cgi-output"></div>
   </main>
-  <script src="cgi-bin/hello.py"></script>
+
+  <script>
+fetch("cgi-bin/hello.py")
+  .then(response => response.text())
+  .then(html => {
+    const container = document.getElementById("cgi-output");
+
+    // HTML parçalarını geçici div içinde işle
+    const temp = document.createElement("div");
+    temp.innerHTML = html;
+
+    // HTML içeriği taşı
+    while (temp.firstChild) {
+      const node = temp.firstChild;
+      temp.removeChild(node);
+
+      // <script> tag'i ise yeniden yarat ve çalıştır
+      if (node.tagName === "SCRIPT") {
+        const script = document.createElement("script");
+        script.text = node.textContent;
+        document.body.appendChild(script); // çalıştırmak için body'e eklenmeli
+      } else {
+        container.appendChild(node);
+      }
+    }
+  });
+</script>
+
 </body>
 </html>

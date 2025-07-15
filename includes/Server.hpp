@@ -99,7 +99,8 @@ class Server
 	std::string generateDirectoryListing(const std::string& path,
 										 const std::string& uri);
 	std::string executeCgi(const std::string& scriptPath,
-						   const std::string& interpreter);
+								const std::string& interpreter,
+								const Request& req);
 	std::vector< std::pair< std::string, std::string > > getListens() const;
 	std::string getServerName() const;
 	std::map<int, ConnectionState>& getConnections();

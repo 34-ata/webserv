@@ -25,6 +25,7 @@ class Request
 
 	HttpMethods getMethod() const;
 	std::string getPath() const;
+	std::string getContentType() const;
 	std::string getVersion() const;
 	const std::string& getData() const;
 	std::string getBody() const;
