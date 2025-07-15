@@ -105,7 +105,6 @@ class Server
 	std::string getServerName() const;
 	std::map<int, ConnectionState>& getConnections();
 	std::string getErrorPageContent(ResponseCodes code);
-	void setListenerFds(int, bool);
 	void removePollFd(int fd);
 
   private:
@@ -119,7 +118,7 @@ class Server
 	std::vector< std::pair< std::string, std::string > > m_listens;
 	bool m_isRunning;
 	std::vector< struct pollfd > pollFds;
-	std::vector< std::pair<int, bool> > listenerFds;
+	std::vector<int> listenerFds;
 	std::queue< Request* > requestQueue;
 	std::string m_response;
 };
