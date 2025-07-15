@@ -301,7 +301,6 @@ void WebServer::checkTimeouts()
 			LOG("Timeout: closing fd " << fd);
 			close(fd);
 			server->removePollFd(fd);
-			server->setListenerFds(conns.find(fd)->second.listenerFd, false);
 			conns.erase(fd);
 		}
 	}

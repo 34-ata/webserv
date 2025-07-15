@@ -19,7 +19,7 @@
     <p>This is a simple static website served by WebServ.</p>
     <img src="images/logo.png" alt="Site Logo" width="150">
 
-    <h2>CGI Çıktısı</h2>
+    <h2>CGI Output:</h2>
     <div id="cgi-output"></div>
   </main>
 
@@ -29,16 +29,13 @@ fetch("cgi-bin/hello.py")
   .then(html => {
     const container = document.getElementById("cgi-output");
 
-    // HTML parçalarını geçici div içinde işle
     const temp = document.createElement("div");
     temp.innerHTML = html;
 
-    // HTML içeriği taşı
     while (temp.firstChild) {
       const node = temp.firstChild;
       temp.removeChild(node);
 
-      // <script> tag'i ise yeniden yarat ve çalıştır
       if (node.tagName === "SCRIPT") {
         const script = document.createElement("script");
         script.text = node.textContent;

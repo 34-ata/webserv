@@ -182,7 +182,7 @@ void Server::start()
 		pfd.events = POLLIN;
 
 		pollFds.push_back(pfd);
-		listenerFds.push_back(std::make_pair(fd, false));
+		listenerFds.push_back(fd);
 
 		std::cout << "Listening on " << ip << ":" << port << " (fd=" << fd
 				  << ")" << std::endl;
@@ -215,7 +215,7 @@ bool Server::connectIfNotConnected(int fd)
 {
     for (size_t i = 0; i < listenerFds.size(); ++i)
     {
-        if (listenerFds[i].first == fd)
+        if (listenerFds[i] == fd)
         {
             struct sockaddr_in clientAddr;
             socklen_t len = sizeof(clientAddr);
@@ -959,17 +959,7 @@ void Server::handleRequestTypes(int fd)
 std::string Server::getServerName() const { return m_serverName; }
 
 std::vector< std::pair< std::string, std::string > > Server::getListens() const { return m_listens; }
-void Server::setListenerFds(int fd, bool value)
-{
-	for (int i = 0; i < (int)listenerFds.size(); i++)
-	{
-		if (listenerFds[i].first == fd)
-		{
-			listenerFds[i].second = value;
-			break ;
-		}
-	}
-}
+
 std::map<int, Server::ConnectionState>& Server::getConnections()
 {
 	return m_connections;
