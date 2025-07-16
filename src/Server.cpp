@@ -16,6 +16,7 @@
 #include <fstream>
 #include <iostream>
 #include <map>
+#include <set>
 #include <queue>
 #include <sstream>
 #include <string>
@@ -59,17 +60,40 @@ Server::ServerConfig::ServerConfig()
 
 Server::~Server()
 {
-	for (std::vector< struct pollfd >::iterator it = pollFds.begin();
-		 it != pollFds.end(); ++it)
+	std::set<int> closedFds;
+
+	// Aktif bağlantıları temizle
+	for (std::map<int, ConnectionState>::iterator it = m_connections.begin();
+		 it != m_connections.end(); ++it)
 	{
-		close(it->fd);
+		int fd = it->first;
+		ConnectionState& state = it->second;
+
+		if (state.req)
+			delete state.req;
+
+		close(fd);
+		closedFds.insert(fd);
 	}
-	while (0 < requestQueue.size())
+	m_connections.clear();
+
+	// pollFds içindeki tüm fd'leri (zaten kapatılmamışsa) kapat
+	for (size_t i = 0; i < pollFds.size(); ++i)
+	{
+		int fd = pollFds[i].fd;
+		if (closedFds.find(fd) == closedFds.end())
+			close(fd);
+	}
+	pollFds.clear();
+
+	// requestQueue temizliği
+	while (!requestQueue.empty())
 	{
 		delete requestQueue.front();
 		requestQueue.pop();
 	}
 }
+
 
 int getPortFromSocket(int fd)
 {
@@ -260,16 +284,6 @@ void Server::fillCache(int fd)
 	}
 }
 
-void Server::deserializeRequest(ConnectionState& state)
-{
-    if (!state.req)
-        state.req = new Request();
-
-    std::stringstream ss(state.cache);
-    state.req->fillRequest(ss.str());
-    state.req->checkIntegrity();
-}
-
 void Server::getHeader(ConnectionState& state)
 {
     std::string& cache = state.cache;
@@ -288,6 +302,7 @@ void Server::closeConnection(int fd)
     close(fd);
     removePollFd(fd);
     delete state.req;
+    state.req = NULL;
     m_connections.erase(fd);
 }
 
