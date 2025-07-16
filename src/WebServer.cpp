@@ -31,10 +31,22 @@ WebServer::WebServer()
 
 WebServer::WebServer(const WebServer& other) { *this = other; }
 
+void deleteConfigBlock(ConfigBlock* block)
+{
+	for (size_t i = 0; i < block->childs.size(); ++i)
+		deleteConfigBlock(block->childs[i]);
+
+	delete block;
+}
+
 WebServer::~WebServer()
 {
 	for (size_t i = 0; i < m_servers.size(); ++i)
 		delete m_servers[i];
+	
+
+	for (size_t i = 0; i < m_root.childs.size(); ++i)
+		deleteConfigBlock(m_root.childs[i]); // yeni fonksiyon
 }
 
 WebServer& WebServer::operator=(const WebServer& other)
