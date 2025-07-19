@@ -2,14 +2,7 @@
 #define REQUEST_HPP
 
 #include "HttpMethods.hpp"
-#include "Log.hpp"
-#include <cstddef>
-#include <cstdio>
-#include <cstdlib>
-#include <functional>
-#include <iostream>
 #include <map>
-#include <sstream>
 #include <string>
 
 class Request
@@ -52,4 +45,4 @@ class Request
 	bool m_badRequest;
 };
 
-#endif // !REQUEST_HPP
+#endif

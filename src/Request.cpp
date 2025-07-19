@@ -1,10 +1,13 @@
 #include "Request.hpp"
-#include <cstdarg>
+#include "Log.hpp"
 #include <cstddef>
+#include <cstdio>
 #include <cstdlib>
+#include <functional>
+#include <iostream>
+#include <map>
 #include <sstream>
 #include <string>
-#include <sys/types.h>
 
 HttpMethods Request::getMethod() const { return m_method; }
 
@@ -18,9 +21,8 @@ std::string Request::getContentType() const {
 	std::map<std::string, std::string>::const_iterator it = m_headers.find("Content-Type");
 	if (it != m_headers.end())
 		return it->second;
-	return "text/plain"; // varsayılan değer
+	return "text/plain";
 }
-
 
 std::string Request::getBody() const
 {
@@ -151,4 +153,3 @@ Request::Request()
 }
 
 Request::~Request() {}
-

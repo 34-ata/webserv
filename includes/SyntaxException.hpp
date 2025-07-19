@@ -1,5 +1,6 @@
 #ifndef SYNTAXEXCEPTION_HPP
 #define SYNTAXEXCEPTION_HPP
+
 #include "Tokenizer.hpp"
 #include <exception>
 #include <iostream>
@@ -21,4 +22,4 @@ class SyntaxException : public std::exception
 	std::string m_errorMsg;
 };
 
-#endif // !SYNTAXEXCEPTION_HPP
+#endif

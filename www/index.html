@@ -2,50 +2,264 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Home | My Static Site</title>
+  <title>WebServ Professional Test Suite</title>
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
   <header>
-    <h1>Welcome to My Static Website</h1>
+    <h1>🚀 WebServ Test Suite</h1>
     <nav>
-      <a href="index.html">Home</a>
-      <a href="about.html">About</a>
-      <a href="contact.html">Contact</a>
+      <a href="index.html">🏠 Home</a>
+      <a href="about.html">ℹ️ About</a>
     </nav>
   </header>
 
   <main>
-    <p>This is a simple static website served by WebServ.</p>
-    <img src="images/logo.png" alt="Site Logo" width="150">
+    <section class="intro">
+      <h2>Professional HTTP Server Testing Platform</h2>
+      <p>Test all HTTP methods with real file operations and immediate feedback.</p>
+    </section>
 
-    <h2>CGI Output:</h2>
-    <div id="cgi-output"></div>
+    <section class="test-suite">
+      <div class="method-card">
+        <h3>📄 GET Method Test</h3>
+        <p>Retrieve file content from server</p>
+        <div class="test-form">
+          <input type="text" id="get-filename" placeholder="Enter filename (e.g., test.txt)" value="sample.txt">
+          <button onclick="testGet()">📥 Get File</button>
+        </div>
+        <div id="get-result" class="result-box"></div>
+      </div>
+
+      <div class="method-card">
+        <h3>📤 POST Method Test</h3>
+        <p>Create a new file with custom content</p>
+        <div class="test-form">
+          <input type="text" id="post-filename" placeholder="Enter filename (e.g., myfile.txt)" value="newfile.txt">
+          <textarea id="post-content" placeholder="Enter file content..." rows="4">Hello from WebServ!\nThis file was created via POST request.</textarea>
+          <button onclick="testPost()">📝 Create File</button>
+        </div>
+        <div id="post-result" class="result-box"></div>
+      </div>
+
+      <div class="method-card">
+        <h3>🗑️ DELETE Method Test</h3>
+        <p>Remove a file from the server</p>
+        <div class="test-form">
+          <input type="text" id="delete-filename" placeholder="Enter filename to delete" value="newfile.txt">
+          <button onclick="testDelete()">❌ Delete File</button>
+        </div>
+        <div id="delete-result" class="result-box"></div>
+      </div>
+
+      <div class="method-card">
+        <h3>⚙️ CGI Execution</h3>
+        <p>Server-side script processing</p>
+        <div class="test-form">
+          <button onclick="testCGI()">🔧 Run Server Info</button>
+        </div>
+        <div id="cgi-result" class="result-box"></div>
+      </div>
+    </section>
+
+    <section class="file-manager">
+      <h2>� File Manager</h2>
+      <button onclick="listFiles()">🔄 Refresh File List</button>
+      <div id="file-list" class="file-list"></div>
+    </section>
   </main>
 
   <script>
-fetch("cgi-bin/hello.py")
-  .then(response => response.text())
-  .then(html => {
-    const container = document.getElementById("cgi-output");
-
-    const temp = document.createElement("div");
-    temp.innerHTML = html;
-
-    while (temp.firstChild) {
-      const node = temp.firstChild;
-      temp.removeChild(node);
-
-      if (node.tagName === "SCRIPT") {
-        const script = document.createElement("script");
-        script.text = node.textContent;
-        document.body.appendChild(script); // çalıştırmak için body'e eklenmeli
-      } else {
-        container.appendChild(node);
-      }
+// GET Method Test
+async function testGet() {
+  const filename = document.getElementById('get-filename').value;
+  const resultDiv = document.getElementById('get-result');
+  
+  if (!filename) {
+    resultDiv.innerHTML = '<div class="error">❌ Please enter a filename</div>';
+    return;
+  }
+  
+  try {
+    const response = await fetch(`uploads/${filename}`);
+    
+    if (response.ok) {
+      const content = await response.text();
+      resultDiv.innerHTML = `
+        <div class="success">✅ File retrieved successfully</div>
+        <div class="file-info">
+          <strong>Filename:</strong> ${filename}<br>
+          <strong>Size:</strong> ${content.length} bytes<br>
+          <strong>Status:</strong> ${response.status} ${response.statusText}
+        </div>
+        <div class="file-content">
+          <strong>Content:</strong>
+          <pre>${content}</pre>
+        </div>
+      `;
+    } else {
+      resultDiv.innerHTML = `<div class="error">❌ File not found (${response.status})</div>`;
     }
-  });
+  } catch (error) {
+    resultDiv.innerHTML = `<div class="error">❌ Error: ${error.message}</div>`;
+  }
+}
+
+// POST Method Test - Create File
+async function testPost() {
+  const filename = document.getElementById('post-filename').value;
+  const content = document.getElementById('post-content').value;
+  const resultDiv = document.getElementById('post-result');
+  
+  if (!filename || !content) {
+    resultDiv.innerHTML = '<div class="error">❌ Please enter both filename and content</div>';
+    return;
+  }
+  
+  try {
+    const response = await fetch('cgi-bin/file_creator.py', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+      body: `filename=${encodeURIComponent(filename)}&content=${encodeURIComponent(content)}`
+    });
+    
+    const result = await response.text();
+    
+    if (response.ok && result.includes('SUCCESS')) {
+      resultDiv.innerHTML = `
+        <div class="success">✅ File created successfully</div>
+        <div class="file-info">
+          <strong>Filename:</strong> ${filename}<br>
+          <strong>Size:</strong> ${content.length} bytes<br>
+          <strong>Location:</strong> /uploads/${filename}
+        </div>
+      `;
+      listFiles(); // Refresh file list
+    } else {
+      resultDiv.innerHTML = `<div class="error">❌ Failed to create file</div>`;
+    }
+  } catch (error) {
+    resultDiv.innerHTML = `<div class="error">❌ Error: ${error.message}</div>`;
+  }
+}
+
+// DELETE Method Test
+async function testDelete() {
+  const filename = document.getElementById('delete-filename').value;
+  const resultDiv = document.getElementById('delete-result');
+  
+  if (!filename) {
+    resultDiv.innerHTML = '<div class="error">❌ Please enter a filename</div>';
+    return;
+  }
+  
+  try {
+    // First check if file exists
+    const checkResponse = await fetch(`uploads/${filename}`);
+    
+    if (!checkResponse.ok) {
+      resultDiv.innerHTML = `<div class="error">❌ File "${filename}" not found</div>`;
+      return;
+    }
+    
+    // Try to delete
+    const deleteResponse = await fetch(`uploads/${filename}`, {method: 'DELETE'});
+    
+    if (deleteResponse.ok) {
+      resultDiv.innerHTML = `
+        <div class="success">✅ File deleted successfully</div>
+        <div class="file-info">
+          <strong>Deleted:</strong> ${filename}<br>
+          <strong>Status:</strong> ${deleteResponse.status} ${deleteResponse.statusText}
+        </div>
+      `;
+      listFiles(); // Refresh file list
+    } else {
+      resultDiv.innerHTML = `<div class="error">❌ Delete failed (${deleteResponse.status})</div>`;
+    }
+  } catch (error) {
+    resultDiv.innerHTML = `<div class="error">❌ Error: ${error.message}</div>`;
+  }
+}
+
+// CGI Test
+async function testCGI() {
+  const resultDiv = document.getElementById('cgi-result');
+  
+  try {
+    const response = await fetch('cgi-bin/server_info.py');
+    
+    if (response.ok) {
+      resultDiv.innerHTML = `
+        <div class="success">✅ CGI executed successfully</div>
+        <div class="cgi-output">
+          <p><strong>Status:</strong> ${response.status} ${response.statusText}</p>
+          <p><strong>Content-Type:</strong> ${response.headers.get('content-type') || 'Unknown'}</p>
+          <a href="cgi-bin/server_info.py" target="_blank" style="
+            display: inline-block;
+            background: linear-gradient(45deg, #28a745, #1e7e34);
+            color: white;
+            padding: 8px 16px;
+            text-decoration: none;
+            border-radius: 6px;
+            margin-top: 10px;
+            font-weight: bold;
+          ">🖥️ View Full Server Info</a>
+        </div>
+      `;
+    } else {
+      resultDiv.innerHTML = `<div class="error">❌ CGI execution failed (${response.status})</div>`;
+    }
+  } catch (error) {
+    resultDiv.innerHTML = `<div class="error">❌ Error: ${error.message}</div>`;
+  }
+}
+
+// List Files
+async function listFiles() {
+  const fileListDiv = document.getElementById('file-list');
+  
+  try {
+    const response = await fetch('uploads/');
+    const html = await response.text();
+    
+    // Parse directory listing
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+    const links = doc.querySelectorAll('a');
+    
+    let fileList = '<div class="files">';
+    links.forEach(link => {
+      const filename = link.textContent.trim();
+      if (filename && filename !== '../' && filename !== './') {
+        fileList += `
+          <div class="file-item">
+            📄 <a href="uploads/${filename}" target="_blank">${filename}</a>
+            <button onclick="quickDelete('${filename}')" class="quick-delete">🗑️</button>
+          </div>
+        `;
+      }
+    });
+    fileList += '</div>';
+    
+    fileListDiv.innerHTML = fileList;
+  } catch (error) {
+    fileListDiv.innerHTML = `<div class="error">❌ Could not load file list</div>`;
+  }
+}
+
+// Quick delete from file list
+async function quickDelete(filename) {
+  document.getElementById('delete-filename').value = filename;
+  await testDelete();
+}
+
+// Load file list on page load
+window.onload = function() {
+  listFiles();
+};
 </script>
 
 </body>
+</html>
 </html>

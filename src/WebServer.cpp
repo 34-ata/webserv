@@ -1,27 +1,34 @@
 #include "WebServer.hpp"
 #include "HttpMethods.hpp"
+#include "Log.hpp"
 #include "ResponseCodes.hpp"
 #include "Server.hpp"
 #include "SyntaxException.hpp"
 #include "Tokenizer.hpp"
-#include <bits/types/locale_t.h>
+#include <arpa/inet.h>
 #include <cstddef>
 #include <cstdlib>
 #include <cstring>
-#include <exception>
 #include <fstream>
 #include <iostream>
 #include <list>
 #include <map>
+#include <netinet/in.h>
+#include <signal.h>
 #include <sstream>
 #include <string>
-#include <strings.h>
-#include <sys/epoll.h>
 #include <sys/socket.h>
 #include <utility>
 #include <vector>
-#define TIMEOUT 30
-#define POLL_TIMEOUT 1000
+#define TIMEOUT 15
+
+volatile sig_atomic_t g_shutdown = 0;
+
+void signalHandler(int signum)
+{
+	(void)signum;
+	g_shutdown = 1;
+}
 
 WebServer::WebServer()
 {
@@ -41,8 +48,14 @@ void deleteConfigBlock(ConfigBlock* block)
 
 WebServer::~WebServer()
 {
-	for (size_t i = 0; i < m_servers.size(); ++i)
-		delete m_servers[i];
+	if (!m_servers.empty() || !m_root.childs.empty())
+	{
+		for (size_t i = 0; i < m_servers.size(); ++i)
+			delete m_servers[i];
+		
+		for (size_t i = 0; i < m_root.childs.size(); ++i)
+			deleteConfigBlock(m_root.childs[i]);
+	}
 }
 
 WebServer& WebServer::operator=(const WebServer& other)
@@ -164,7 +177,7 @@ Server::ServerConfig WebServer::createServerConfig(const ConfigBlock& server)
 		std::vector< std::string > directive_args = directives[i].args;
 		if (directive_name == "server_name")
 			config.serverName =
-				directive_args[0]; // 1 isim alıyor sonra değişecek.
+				directive_args[0];
 		else if (directive_name == "error_page")
 		{
 			if (directive_args.size() != 2)
@@ -298,7 +311,6 @@ void WebServer::checkTimeouts()
 
 		for (std::map<int, Server::ConnectionState>::iterator it = conns.begin(); it != conns.end(); ++it)
 		{
-			//LOG("TIME: " << difftime(now, it->second.timeStamp));
 			if (difftime(now, it->second.timeStamp) > TIMEOUT)
 				toClose.push_back(it->first);
 		}
@@ -316,7 +328,10 @@ void WebServer::checkTimeouts()
 
 void WebServer::Run()
 {
-	while (true)
+	signal(SIGINT, signalHandler);
+	signal(SIGTERM, signalHandler);
+	
+	while (!g_shutdown)
 	{
 		std::vector<struct pollfd> fds;
 
@@ -367,11 +382,27 @@ void WebServer::Run()
 	}
 }
 
+void WebServer::Shutdown()
+{
+	for (size_t i = 0; i < m_servers.size(); ++i)
+	{
+		if (m_servers[i])
+		{
+			delete m_servers[i];
+			m_servers[i] = NULL;
+		}
+	}
+	m_servers.clear();
+	
+	for (size_t i = 0; i < m_root.childs.size(); ++i)
+		deleteConfigBlock(m_root.childs[i]);
+	m_root.childs.clear();
+}
+
 static void ParseLocation(ConfigBlock* server, std::string locationPath,
 						  Tokenizer::const_iterator start,
 						  Tokenizer::const_iterator end)
 {
-	ConfigDirective temp;
 	ConfigBlock* location = new ConfigBlock();
 	server->childs.push_back(location);
 
@@ -379,15 +410,15 @@ static void ParseLocation(ConfigBlock* server, std::string locationPath,
 	location->args.push_back(locationPath);
 	for (; start != end; start++)
 	{
-		temp.directiveName = *start;
-		temp.args.clear();
+		ConfigDirective directive;
+		directive.directiveName = *start;
 		start++;
 		while (*start != ";")
 		{
-			temp.args.push_back(*start);
+			directive.args.push_back(*start);
 			start++;
 		}
-		location->directives.push_back(temp);
+		location->directives.push_back(directive);
 	}
 }
 
@@ -395,7 +426,6 @@ void WebServer::ParseServer(std::list< std::string >::const_iterator start,
 							std::list< std::string >::const_iterator end)
 {
 	ConfigBlock* server = new ConfigBlock();
-	ConfigDirective temp;
 	std::string locationPath;
 	m_root.childs.push_back(server);
 	server->name = "server";
@@ -419,15 +449,15 @@ void WebServer::ParseServer(std::list< std::string >::const_iterator start,
 		}
 		else
 		{
-			temp.directiveName = *start;
-			temp.args.clear();
+			ConfigDirective directive;
+			directive.directiveName = *start;
 			start++;
 			while (*start != ";")
 			{
-				temp.args.push_back(*start);
+				directive.args.push_back(*start);
 				start++;
 			}
-			server->directives.push_back(temp);
+			server->directives.push_back(directive);
 		}
 	}
 }

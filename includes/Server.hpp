@@ -2,24 +2,14 @@
 #define SERVER_HPP
 
 #include "HttpMethods.hpp"
-#include "Request.hpp"
-#include "Response.hpp"
 #include "ResponseCodes.hpp"
-#include <arpa/inet.h>
-#include <cstddef>
-#include <cstdio>
-#include <cstdlib>
-#include <fcntl.h>
 #include <map>
-#include <netinet/in.h>
 #include <poll.h>
-#include <queue>
-#include <sstream>
 #include <string>
-#include <sys/socket.h>
-#include <sys/types.h>
-#include <unistd.h>
 #include <vector>
+
+class Request;
+class Response;
 
 class Server
 {
@@ -42,9 +32,9 @@ class Server
 
 		std::string cgiExtension;
 		std::string cgiExecutablePath;
-	};
+};
 
-	struct ServerConfig
+struct ServerConfig
 	{
 		ServerConfig();
 
@@ -67,7 +57,6 @@ struct ConnectionState
     time_t timeStamp;
     int listenerFd;
     
-    // Constructor ekleyin
     ConnectionState() 
         : req(NULL)
         , cache("")
@@ -117,17 +106,14 @@ struct ConnectionState
 
   private:
 	std::map<int, ConnectionState> m_connections;
-	std::map<int, time_t> m_lastActivity;
 	std::string m_serverName;
 	std::string m_rootPath;
 	size_t m_clientMaxBodySize;
 	std::map< ResponseCodes, std::string > m_errorPages;
 	std::vector< Location > m_locations;
 	std::vector< std::pair< std::string, std::string > > m_listens;
-	bool m_isRunning;
 	std::vector< struct pollfd > pollFds;
 	std::vector<int> listenerFds;
-	std::queue< Request* > requestQueue;
 	std::string m_response;
 };
 

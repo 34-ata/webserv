@@ -1,12 +1,16 @@
 #include "Tokenizer.hpp"
 #include "SyntaxException.hpp"
 #include <cctype>
+#include <cstddef>
+#include <cstdio>
+#include <exception>
+#include <fstream>
 #include <iostream>
 #include <istream>
-#include <iterator>
 #include <list>
 #include <sstream>
 #include <string>
+#include <vector>
 
 void print_indent(int count, int size)
 {

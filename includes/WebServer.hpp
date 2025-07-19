@@ -3,8 +3,6 @@
 
 #include "Server.hpp"
 #include "Tokenizer.hpp"
-#include <arpa/inet.h>
-#include <fstream>
 #include <string>
 #include <vector>
 
@@ -18,6 +16,7 @@ class WebServer
 
 	bool Init(const std::string& configFile);
 	void Run();
+	void Shutdown();
 
   private:
 	void Parse(std::ifstream& fileIn);

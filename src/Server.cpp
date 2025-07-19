@@ -1,23 +1,39 @@
 #include "Server.hpp"
+#include "../includes/Request.hpp"
 #include "../includes/Response.hpp"
 #include "HttpMethods.hpp"
 #include "HttpVersion.hpp"
 #include "Log.hpp"
-#include "Request.hpp"
 #include "ResponseCodes.hpp"
-#include "SyntaxException.hpp"
 #include <algorithm>
+#include <arpa/inet.h>
+#include <cerrno>
+#include <climits>
 #include <cstddef>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
+#include <fcntl.h>
+#include <fstream>
+#include <iostream>
+#include <map>
+#include <netdb.h>
+#include <netinet/in.h>
+#include <poll.h>
+#include <sstream>
+#include <string>
+#include <sys/socket.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <unistd.h>
+#include <vector>
 #include <dirent.h>
 #include <fstream>
 #include <iostream>
 #include <map>
 #include <set>
-#include <queue>
 #include <sstream>
 #include <string>
 #include <sys/socket.h>
@@ -26,7 +42,7 @@
 #include <unistd.h>
 #include <utility>
 #include <vector>
-#define TIMEOUT 5
+#define TIMEOUT 15
 
 Server::Server(const Server::ServerConfig& config)
 {
@@ -47,7 +63,6 @@ Server::Server(const Server::ServerConfig& config)
 		else
 			m_listens.push_back(std::make_pair("0.0.0.0", config.listens[i]));
 	}
-	this->m_isRunning = false;
 }
 
 Server::ServerConfig::ServerConfig()
@@ -61,7 +76,6 @@ Server::ServerConfig::ServerConfig()
 Server::~Server()
 {
 	std::set<int> closedFds;
-	// Aktif bağlantıları temizle
 	for (std::map<int, ConnectionState>::iterator it = m_connections.begin();
 		 it != m_connections.end(); ++it)
 	{
@@ -76,7 +90,6 @@ Server::~Server()
 	}
 	m_connections.clear();
 
-	// pollFds içindeki tüm fd'leri (zaten kapatılmamışsa) kapat
 	for (size_t i = 0; i < pollFds.size(); ++i)
 	{
 		int fd = pollFds[i].fd;
@@ -84,15 +97,7 @@ Server::~Server()
 			close(fd);
 	}
 	pollFds.clear();
-
-	// requestQueue temizliği
-	while (!requestQueue.empty())
-	{
-		delete requestQueue.front();
-		requestQueue.pop();
-	}
 }
-
 
 int getPortFromSocket(int fd)
 {
@@ -370,7 +375,6 @@ void Server::handleReadEvent(int fd)
     {
         if (state.req == NULL)
         {
-            LOG("-----------------------------------------------------------------------------------------------")
             state.req = new Request();
             state.timeStamp = time(NULL);
         }
@@ -431,8 +435,8 @@ std::string Server::executeCgi(const std::string& scriptPath,
                                const std::string& interpreter,
                                const Request& req)
 {
-    int inputPipe[2];  // parent → child (stdin)
-    int outputPipe[2]; // child → parent (stdout)
+    int inputPipe[2];
+    int outputPipe[2];
 
     if (pipe(inputPipe) == -1 || pipe(outputPipe) == -1)
         return "CGI error: pipe() failed\n";
@@ -443,7 +447,6 @@ std::string Server::executeCgi(const std::string& scriptPath,
 
     if (pid == 0)
     {
-        // child process
         close(inputPipe[1]);
         close(outputPipe[0]);
         dup2(inputPipe[0], STDIN_FILENO);
@@ -451,18 +454,12 @@ std::string Server::executeCgi(const std::string& scriptPath,
         close(inputPipe[0]);
         close(outputPipe[1]);
 
-        // set working directory
-        //size_t lastSlash = scriptPath.find_last_of('/');
-        //if (lastSlash != std::string::npos)
-        //    chdir(scriptPath.substr(0, lastSlash).c_str());
-
         std::string method = req.getMethod() == POST ? "POST" : "GET";
         std::stringstream ss;
         ss << req.getBody().size();
         std::string contentLength = ss.str();
         std::string contentType = req.getContentType();
 
-        // prepare environment
         std::vector<std::string> env;
         env.push_back("GATEWAY_INTERFACE=CGI/1.1");
         env.push_back("SERVER_PROTOCOL=HTTP/1.1");
@@ -487,7 +484,6 @@ std::string Server::executeCgi(const std::string& scriptPath,
         exit(1);
     }
 
-    // parent process
     close(inputPipe[0]);
     close(outputPipe[1]);
 
@@ -551,7 +547,6 @@ void Server::handleCgiOutput(int fd, std::string cgiOutput)
 
     m_response = response.build();
 
-    // Eğer buradan çağrılmıyorsa bu kısımlar handleRequestTypes içinde çağrılmalı
     state.response = m_response;
     state.responseOffset = 0;
     setPollout(fd, true);
@@ -648,7 +643,14 @@ std::string Server::getErrorPageContent(ResponseCodes code)
 		m_errorPages.find(code);
 	if (it != m_errorPages.end())
 	{
-		std::string fullPath = "." + m_rootPath + it->second;
+		std::string errorPagePath = it->second;
+		std::string fullPath;
+		
+		if (!errorPagePath.empty() && errorPagePath[0] == '/')
+			fullPath = "." + errorPagePath;
+		else
+			fullPath = "./" + errorPagePath;
+		
 		if (access(fullPath.c_str(), F_OK) == 0)
 			return getFileContent(fullPath);
 		else
@@ -776,7 +778,7 @@ void Server::handlePostRequest(const Location& loc, int fd)
     std::stringstream ss;
     ss << std::time(NULL);
     std::string filename = loc.uploadPath + "/upload_" + ss.str();
-
+    
     std::ofstream file(filename.c_str(), std::ios::binary);
     if (!file.is_open())
     {
