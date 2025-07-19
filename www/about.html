@@ -2,20 +2,87 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>About</title>
+  <title>About WebServ</title>
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
   <header>
-    <h1>About Us</h1>
+    <h1>ℹ️ About WebServ</h1>
     <nav>
-      <a href="index.html">Home</a>
-      <a href="about.html">About</a>
-      <a href="contact.html">Contact</a>
+      <a href="index.html">🏠 Home</a>
+      <a href="about.html">ℹ️ About</a>
     </nav>
   </header>
+
   <main>
-    <p>This website was built as a static example for WebServ.</p>
+    <section class="about-content">
+      <h2>🚀 WebServ HTTP Server</h2>
+      <p>A professional HTTP/1.1 server implementation in C++98 with modern web capabilities.</p>
+      
+      <div class="features-list">
+        <h3>✨ Core Features</h3>
+        
+        <div class="feature-item">
+          <h4>📄 HTTP Methods</h4>
+          <ul>
+            <li><strong>GET:</strong> File retrieval and content serving</li>
+            <li><strong>POST:</strong> File creation and data processing</li>
+            <li><strong>DELETE:</strong> File removal operations</li>
+          </ul>
+        </div>
+
+        <div class="feature-item">
+          <h4>⚙️ CGI Processing</h4>
+          <ul>
+            <li>Python script execution</li>
+            <li>Environment variable handling</li>
+            <li>Dynamic content generation</li>
+          </ul>
+        </div>
+
+        <div class="feature-item">
+          <h4>📁 File Management</h4>
+          <ul>
+            <li>Static file serving</li>
+            <li>Directory indexing</li>
+            <li>MIME type detection</li>
+            <li>File upload handling</li>
+          </ul>
+        </div>
+
+        <div class="feature-item">
+          <h4>�️ Error Handling</h4>
+          <ul>
+            <li>Custom error pages</li>
+            <li>Graceful failure handling</li>
+            <li>Request validation</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="tech-specs">
+        <h3>🔬 Technical Specifications</h3>
+        <table>
+          <tr><td><strong>Language:</strong></td><td>C++98</td></tr>
+          <tr><td><strong>HTTP Version:</strong></td><td>HTTP/1.1</td></tr>
+          <tr><td><strong>I/O Model:</strong></td><td>Non-blocking poll()</td></tr>
+          <tr><td><strong>CGI Standard:</strong></td><td>CGI/1.1</td></tr>
+          <tr><td><strong>Configuration:</strong></td><td>Nginx-style syntax</td></tr>
+        </table>
+      </div>
+
+      <div class="testing-info">
+        <h3>🧪 Testing Instructions</h3>
+        <p>Use the <a href="index.html">Home page</a> to test all server features:</p>
+        <ul>
+          <li><strong>GET Test:</strong> Retrieve existing files from the server</li>
+          <li><strong>POST Test:</strong> Create new files with custom content</li>
+          <li><strong>DELETE Test:</strong> Remove files from the server</li>
+          <li><strong>CGI Test:</strong> Execute server-side scripts</li>
+          <li><strong>File Manager:</strong> View and manage uploaded files</li>
+        </ul>
+      </div>
+    </section>
   </main>
 </body>
 </html>

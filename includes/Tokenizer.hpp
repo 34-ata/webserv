@@ -1,13 +1,8 @@
 #ifndef TOKENIZER_HPP
 #define TOKENIZER_HPP
 
-#include <cctype>
-#include <cstddef>
-#include <cstdio>
-#include <exception>
 #include <istream>
 #include <list>
-#include <sstream>
 #include <string>
 #include <vector>
 
@@ -24,12 +19,6 @@ struct ConfigBlock
 	std::vector< ConfigBlock* > childs;
 	std::vector< ConfigDirective > directives;
 	ConfigBlock* parent;
-
-	~ConfigBlock()
-	{
-		for (std::size_t i = 0; i < this->childs.size(); i++)
-			delete this->childs[i];
-	}
 };
 
 class Tokenizer
@@ -60,4 +49,4 @@ class Tokenizer
 	void GetChar();
 };
 
-#endif // !TOKENIZER_HPP
+#endif

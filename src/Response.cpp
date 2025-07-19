@@ -1,13 +1,11 @@
 #include "Response.hpp"
-#include "HttpMethods.hpp"
-#include "HttpVersion.hpp"
 #include "ResponseCodes.hpp"
 #include <fcntl.h>
+#include <fstream>
 #include <iostream>
 #include <map>
 #include <sstream>
 #include <string>
-#include <sys/socket.h>
 #include <sys/stat.h>
 #include <unistd.h>
 

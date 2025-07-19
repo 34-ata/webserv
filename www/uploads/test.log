@@ -1,0 +1,6 @@
+[2025-01-19 12:00:00] Server started
+[2025-01-19 12:00:01] Configuration loaded
+[2025-01-19 12:00:01] Listening on port 8080
+[2025-01-19 12:00:02] First request received
+[2025-01-19 12:00:03] CGI script executed successfully
+[2025-01-19 12:00:04] Static file served

@@ -1,8 +1,8 @@
 server {
     listen 8080;
     server_name localhost;
-    error_page 404 /errors/404.html;
-    error_page 500 /errors/500.html;
+    error_page 404 /www/errors/404.html;
+    error_page 500 /www/errors/500.html;
     index index.html;
     root /www;
     client_max_body_size 1000000;
@@ -11,7 +11,7 @@ server {
         root /www;
         index index.html;
         autoindex off;
-        methods GET;
+        methods GET POST DELETE;
     }
 
     location /cgi-bin {
@@ -21,8 +21,112 @@ server {
         cgi_path /usr/bin/python3;
     }
 
+    location /uploads {
+        root /www/uploads;
+        methods GET POST DELETE;
+        autoindex on;
+        upload_store ./www/uploads;
+    }
+
     location /errors {
-        root /www;
+        root /www/errors;
         methods GET;
+    }
+
+    location /css {
+        root /www/css;
+        methods GET;
+    }
+
+    location /images {
+        root /www/images;
+        methods GET;
+    }
+}
+
+# API Server - Port 8081
+server {
+    listen 8081;
+    server_name api.localhost;
+    error_page 404 /api_errors/404.html;
+    error_page 500 /api_errors/500.html;
+    root /api;
+    client_max_body_size 500000;
+
+    location / {
+        root /api;
+        methods GET POST PUT DELETE;
+        autoindex off;
+    }
+
+    location /data {
+        root /api/data;
+        methods GET POST DELETE;
+        autoindex on;
+        upload_store ./api/data;
+    }
+
+    location /cgi {
+        root /api/cgi;
+        methods GET POST;
+        cgi_extension .py;
+        cgi_path /usr/bin/python3;
+    }
+}
+
+# File Server - Port 8082
+server {
+    listen 8082;
+    server_name files.localhost;
+    error_page 404 /file_errors/404.html;
+    error_page 500 /file_errors/500.html;
+    root /files;
+    client_max_body_size 2000000;
+
+    location / {
+        root /files;
+        methods GET;
+        autoindex on;
+    }
+
+    location /public {
+        root /files/public;
+        methods GET POST DELETE;
+        autoindex on;
+        upload_store ./files/public;
+    }
+
+    location /private {
+        root /files/private;
+        methods GET;
+        autoindex off;
+    }
+}
+
+# Static Server - Port 8083  
+server {
+    listen 8083;
+    server_name static.localhost;
+    error_page 404 /static_errors/404.html;
+    root /static;
+    client_max_body_size 100000;
+
+    location / {
+        root /static;
+        methods GET;
+        autoindex off;
+        index main.html;
+    }
+
+    location /assets {
+        root /static/assets;
+        methods GET;
+        autoindex on;
+    }
+
+    location /docs {
+        root /static/docs;
+        methods GET;
+        autoindex on;
     }
 }

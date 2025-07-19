@@ -1,11 +1,7 @@
-#include "Tokenizer.hpp"
 #include "WebServer.hpp"
-#include <arpa/inet.h>
+#include <cstdlib>
 #include <csignal>
-#include <cstring>
 #include <iostream>
-#include <netinet/ip.h>
-#include <sys/socket.h>
 
 WebServer* g_server = NULL;
 
@@ -15,6 +11,7 @@ void handleSigint(int signum)
 
 	if (g_server)
 	{
+		g_server->Shutdown();
 		delete g_server;
 		g_server = NULL;
 	}
@@ -30,7 +27,7 @@ int main(int argc, char** argv)
 		return 1;
 	}
 
-	signal(SIGINT, handleSigint);  // Sinyali kaydet
+	signal(SIGINT, handleSigint);
 
 	g_server = new WebServer();
 	if (!g_server->Init(argv[1]))
@@ -42,6 +39,7 @@ int main(int argc, char** argv)
 
 	g_server->Run();
 
-	delete g_server;  // Ctrl+C değilse manuel çıkışta da temizlik
+	g_server->Shutdown();
+	delete g_server;
 	return 0;
 }
