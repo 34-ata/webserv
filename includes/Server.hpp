@@ -58,17 +58,26 @@ class Server
 		bool autoIndex;
 	};
 
-	struct ConnectionState
-	{
-		Request*	req;
-		time_t		timeStamp;
-		int			listenerFd;
-		std::string	response;
-		size_t		responseOffset;
-		std::string cache;
-
-		ConnectionState() : req(NULL), timeStamp(time(NULL)) {}
-	};
+struct ConnectionState
+{
+    Request* req;
+    std::string cache;
+    std::string response;
+    size_t responseOffset;
+    time_t timeStamp;
+    int listenerFd;
+    
+    // Constructor ekleyin
+    ConnectionState() 
+        : req(NULL)
+        , cache("")
+        , response("")
+        , responseOffset(0)
+        , timeStamp(0)
+        , listenerFd(-1)
+    {
+    }
+};
 
 	Server();
 	Server(const ServerConfig& config);
@@ -90,8 +99,7 @@ class Server
 	bool ownsFd(int fd) const;
 	std::vector< struct pollfd >& getPollFds();
 	bool connectIfNotConnected(int fd);
-	void fillCache(int fd);
-	void deserializeRequest(ConnectionState& state);
+	bool fillCache(int fd);
 	void closeConnection(int fd);
 	void setPollout(int fd, bool enable);
 

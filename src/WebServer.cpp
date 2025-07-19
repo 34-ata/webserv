@@ -43,10 +43,6 @@ WebServer::~WebServer()
 {
 	for (size_t i = 0; i < m_servers.size(); ++i)
 		delete m_servers[i];
-	
-
-	for (size_t i = 0; i < m_root.childs.size(); ++i)
-		deleteConfigBlock(m_root.childs[i]); // yeni fonksiyon
 }
 
 WebServer& WebServer::operator=(const WebServer& other)
