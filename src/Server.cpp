@@ -61,7 +61,6 @@ Server::ServerConfig::ServerConfig()
 Server::~Server()
 {
 	std::set<int> closedFds;
-
 	// Aktif bağlantıları temizle
 	for (std::map<int, ConnectionState>::iterator it = m_connections.begin();
 		 it != m_connections.end(); ++it)
@@ -263,7 +262,7 @@ bool Server::connectIfNotConnected(int fd)
     return false;
 }
 
-void Server::fillCache(int fd)
+bool Server::fillCache(int fd)
 {
     ConnectionState& state = m_connections[fd];
     char buffer[1024];
@@ -275,13 +274,17 @@ void Server::fillCache(int fd)
         state.cache.clear();
         state.cache.append(buffer, bytes);
         state.timeStamp = time(NULL);
+        return false;
     }
 	else if (bytes == 0)
 	{
 		close(fd);
 		removePollFd(fd);
 		m_connections.erase(fd);
+        return true;
 	}
+    closeConnection(fd);
+    return true;
 }
 
 void Server::getHeader(ConnectionState& state)
@@ -361,11 +364,13 @@ void Server::handleReadEvent(int fd)
 
     ConnectionState& state = m_connections[fd]; 
 
-    fillCache(fd);
+    if (fillCache(fd))
+        return;
     if (state.cache.find("\r\n\r\n") != std::string::npos || state.req != NULL)
     {
         if (state.req == NULL)
         {
+            LOG("-----------------------------------------------------------------------------------------------")
             state.req = new Request();
             state.timeStamp = time(NULL);
         }
