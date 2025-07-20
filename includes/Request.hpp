@@ -2,6 +2,7 @@
 #define REQUEST_HPP
 
 #include "HttpMethods.hpp"
+#include <ctime>
 #include <map>
 #include <string>
 
