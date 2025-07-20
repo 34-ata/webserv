@@ -7,9 +7,6 @@
 #include "ResponseCodes.hpp"
 #include <algorithm>
 #include <arpa/inet.h>
-#include <cerrno>
-#include <climits>
-#include <cstddef>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -18,21 +15,8 @@
 #include <fstream>
 #include <iostream>
 #include <map>
-#include <netdb.h>
 #include <netinet/in.h>
 #include <poll.h>
-#include <sstream>
-#include <string>
-#include <sys/socket.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <sys/wait.h>
-#include <unistd.h>
-#include <vector>
-#include <dirent.h>
-#include <fstream>
-#include <iostream>
-#include <map>
 #include <set>
 #include <sstream>
 #include <string>
@@ -42,6 +26,7 @@
 #include <unistd.h>
 #include <utility>
 #include <vector>
+#include <dirent.h>
 #define TIMEOUT 15
 
 Server::Server(const Server::ServerConfig& config)
