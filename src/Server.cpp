@@ -283,6 +283,11 @@ bool Server::fillCache(int fd)
     }
 	else if (bytes == 0)
 	{
+        if (state.req)
+        {
+            delete state.req;
+            state.req = NULL;
+        }
 		close(fd);
 		removePollFd(fd);
 		m_connections.erase(fd);
