@@ -117,13 +117,16 @@ async function testPost() {
   }
   
   try {
+    console.log('Sending POST request with:', { filename, content }); // Debugging log
     const response = await fetch('cgi-bin/file_creator.py', {
       method: 'POST',
       headers: {'Content-Type': 'application/x-www-form-urlencoded'},
       body: `filename=${encodeURIComponent(filename)}&content=${encodeURIComponent(content)}`
     });
     
+    console.log('Response status:', response.status); // Debugging log
     const result = await response.text();
+    console.log('Server response:', result); // Debugging log
     
     if (response.ok && result.includes('SUCCESS')) {
       resultDiv.innerHTML = `
@@ -136,9 +139,17 @@ async function testPost() {
       `;
       listFiles(); // Refresh file list
     } else {
-      resultDiv.innerHTML = `<div class="error">❌ Failed to create file</div>`;
+      resultDiv.innerHTML = `
+        <div class="error">❌ Failed to create file</div>
+        <div class="error-details">
+          <strong>Status:</strong> ${response.status}<br>
+          <strong>Response:</strong> ${result.substring(0, 200)}...<br>
+          <strong>CGI Path:</strong> cgi-bin/file_creator.py
+        </div>
+      `;
     }
   } catch (error) {
+    console.error('Error during POST request:', error); // Debugging log
     resultDiv.innerHTML = `<div class="error">❌ Error: ${error.message}</div>`;
   }
 }
@@ -154,16 +165,29 @@ async function testDelete() {
   }
   
   try {
+    console.log(`Checking if file exists: uploads/${filename}`); // Debug
+    
     // First check if file exists
     const checkResponse = await fetch(`uploads/${filename}`);
+    console.log('Check response status:', checkResponse.status); // Debug
     
     if (!checkResponse.ok) {
-      resultDiv.innerHTML = `<div class="error">❌ File "${filename}" not found</div>`;
+      resultDiv.innerHTML = `
+        <div class="error">❌ File "${filename}" not found</div>
+        <div class="error-details">
+          <strong>Status:</strong> ${checkResponse.status}<br>
+          <strong>Path checked:</strong> uploads/${filename}<br>
+          <em>File must exist before deletion. Try creating it first with POST.</em>
+        </div>
+      `;
       return;
     }
     
+    console.log(`File exists, attempting to delete: uploads/${filename}`); // Debug
+    
     // Try to delete
     const deleteResponse = await fetch(`uploads/${filename}`, {method: 'DELETE'});
+    console.log('Delete response status:', deleteResponse.status); // Debug
     
     if (deleteResponse.ok) {
       resultDiv.innerHTML = `
@@ -175,9 +199,18 @@ async function testDelete() {
       `;
       listFiles(); // Refresh file list
     } else {
-      resultDiv.innerHTML = `<div class="error">❌ Delete failed (${deleteResponse.status})</div>`;
+      const errorText = await deleteResponse.text();
+      resultDiv.innerHTML = `
+        <div class="error">❌ Delete failed</div>
+        <div class="error-details">
+          <strong>Status:</strong> ${deleteResponse.status}<br>
+          <strong>Response:</strong> ${errorText.substring(0, 200)}<br>
+          <em>Server may not support DELETE method.</em>
+        </div>
+      `;
     }
   } catch (error) {
+    console.error('Delete error:', error); // Debug
     resultDiv.innerHTML = `<div class="error">❌ Error: ${error.message}</div>`;
   }
 }
