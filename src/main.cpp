@@ -1,6 +1,5 @@
 #include "WebServer.hpp"
 #include <cstdlib>
-#include <csignal>
 #include <iostream>
 
 WebServer* g_server = NULL;
