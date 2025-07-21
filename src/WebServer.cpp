@@ -158,7 +158,6 @@ Server::Location WebServer::createLocation(const ConfigBlock& location)
 				throw SyntaxException(
 					location, directives[i],
 					"Invalid usage of upload_store directive.");
-			loc.uploadEnabled = true;
 			loc.uploadPath	  = directive_args[0];
 		}
 	}
