@@ -8,16 +8,13 @@ import os
 print("Content-Type: text/html")
 print()
 
-# Get form data
 form = cgi.FieldStorage()
 
-# Extract all form fields
 name = html.escape(form.getfirst("name", "Anonymous"))
 email = html.escape(form.getfirst("email", ""))
 subject = html.escape(form.getfirst("subject", ""))
 message = html.escape(form.getfirst("message", ""))
 
-# Also handle the simple message field for backward compatibility
 msg = html.escape(form.getfirst("msg", ""))
 
 print(f"""

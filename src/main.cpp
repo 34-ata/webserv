@@ -2,8 +2,6 @@
 #include <cstdlib>
 #include <iostream>
 
-WebServer* g_server = NULL;
-
 int main(int argc, char** argv)
 {
 	if (argc != 2)
@@ -12,17 +10,15 @@ int main(int argc, char** argv)
 		return 1;
 	}
 
-	g_server = new WebServer();
-	if (!g_server->Init(argv[1]))
+	WebServer webserv;
+	if (!webserv.Init(argv[1]))
 	{
 		std::cerr << "Failed to init server." << std::endl;
-		delete g_server;
 		return 1;
 	}
 
-	g_server->Run();
+	webserv.Run();
 
-	g_server->Shutdown();
-	delete g_server;
+	webserv.Shutdown();
 	return 0;
 }
