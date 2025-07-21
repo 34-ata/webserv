@@ -25,7 +25,7 @@ class WebServer
 	std::string parseHostHeader(int fd);
 	void checkTimeouts();
 	Server::ServerConfig createServerConfig(const ConfigBlock& server);
-	Server::Location createLocation(const ConfigBlock& location);
+	Server::Location createLocation(const ConfigBlock& location, const Server::ServerConfig& config);
 
   private:
 	ConfigBlock m_root;

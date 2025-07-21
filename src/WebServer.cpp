@@ -75,9 +75,9 @@ bool isErrorCode(std::string code)
 	return false;
 }
 
-Server::Location WebServer::createLocation(const ConfigBlock& location)
+Server::Location WebServer::createLocation(const ConfigBlock& location, const Server::ServerConfig& config)
 {
-	Server::Location loc;
+	Server::Location loc(config);
 	if (location.name == "location" && !location.args.empty())
 		loc.locUrl = location.args[0];
 	std::vector< ConfigDirective > directives = location.directives;
@@ -238,7 +238,7 @@ Server::ServerConfig WebServer::createServerConfig(const ConfigBlock& server)
 
 	std::vector< ConfigBlock* > locations = server.childs;
 	for (size_t i = 0; i < locations.size(); i++)
-		config.locations.push_back(createLocation(*locations[i]));
+		config.locations.push_back(createLocation(*locations[i], config));
 
 	return config;
 }
