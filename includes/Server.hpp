@@ -27,7 +27,6 @@ class Server
 		std::string redirectTo;
 		int redirectCode;
 
-		bool uploadEnabled;
 		std::string uploadPath;
 
 		std::string cgiExtension;
@@ -84,8 +83,6 @@ struct ConnectionState
 	void handleCgiOutput(int fd, std::string cgiOutput);
 	void handleDirectory(int fd, const Location& loc, std::string uri, std::string filePath);
 
-	void getHeader(ConnectionState& state);
-	bool ownsFd(int fd) const;
 	std::vector< struct pollfd >& getPollFds();
 	bool connectIfNotConnected(int fd);
 	bool fillCache(int fd);

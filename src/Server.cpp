@@ -84,15 +84,6 @@ Server::~Server()
 	pollFds.clear();
 }
 
-int getPortFromSocket(int fd)
-{
-	struct sockaddr_in addr;
-	socklen_t len = sizeof(addr);
-	if (getsockname(fd, (struct sockaddr*)&addr, &len) == -1)
-		return -1;
-	return ntohs(addr.sin_port);
-}
-
 Server* findMatchingServer(const std::string& ip, int port,
 						   const std::vector< Server* >& servers,
 						   const std::string& hostHeader)
@@ -202,16 +193,6 @@ void Server::start()
 	}
 }
 
-bool Server::ownsFd(int fd) const
-{
-	for (size_t i = 0; i < pollFds.size(); ++i)
-	{
-		if (pollFds[i].fd == fd)
-			return true;
-	}
-	return false;
-}
-
 void Server::removePollFd(int fd)
 {
 	for (size_t i = 0; i < pollFds.size(); ++i)
@@ -280,18 +261,6 @@ bool Server::fillCache(int fd)
 	}
     closeConnection(fd);
     return true;
-}
-
-void Server::getHeader(ConnectionState& state)
-{
-    std::string& cache = state.cache;
-    if (cache.find("\r\n\r\n") == std::string::npos)
-    {
-        state.req->setBadRequest();
-        return;
-    }
-    state.req->fillRequest(cache);
-    state.req->checkIntegrity();
 }
 
 void Server::closeConnection(int fd)
@@ -986,5 +955,4 @@ Server::Location::Location()
 	indexPath	  = "index.html";
 	autoIndex	  = false;
 	hasRedirect	  = false;
-	uploadEnabled = false;
 }
