@@ -42,6 +42,14 @@ server {
         root /www/images;
         methods GET;
     }
+
+    location /old-page {
+        return 301 /index.html;
+    }
+
+    location /temp-redirect {
+        return 302 /about.html;
+    }
 }
 
 # API Server - Port 8081
