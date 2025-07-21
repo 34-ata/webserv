@@ -55,6 +55,7 @@ Server::ServerConfig::ServerConfig()
 	clientMaxBodySize	  = 1000000;
 	errorPages[NOT_FOUND] = "404.html";
 	listens.push_back("0.0.0.0:8080");
+    autoIndex = false;
 }
 
 Server::~Server()
@@ -533,10 +534,10 @@ void Server::handleDirectory(int fd, const Location& loc, std::string uri, std::
     Response response;
     Request* req = m_connections[fd].req;
 
+    std::string rootIndexPath = "." + joinPaths(loc.serverRoot, loc.indexPath);
     if (!loc.indexPath.empty())
     {
         std::string indexFilePath = joinPaths(filePath, loc.indexPath);
-        std::string rootIndexPath = "." + joinPaths(loc.serverRoot, loc.indexPath);
         if (access(indexFilePath.c_str(), F_OK) == 0)
         {
             if (access(indexFilePath.c_str(), R_OK) == 0)
@@ -979,7 +980,7 @@ Server::Location::Location(const Server::ServerConfig& config)
 	rootPath	  = config.rootPath;
 	indexPath	  = config.indexPath;
     serverRoot    = config.rootPath;
-	autoIndex	  = false;
+	autoIndex	  = config.autoIndex;
 	hasRedirect	  = false;
 }
 

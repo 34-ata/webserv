@@ -106,9 +106,9 @@ Server::Location WebServer::createLocation(const ConfigBlock& location, const Se
 		else if (directive_name == "index")
 		{
 			if (directive_args.size() != 1)
-				throw SyntaxException(location, directives[i],
-									  "Invalid usage of given directive.");
-			loc.indexPath = directive_args[0];
+			throw SyntaxException(location, directives[i],
+				"Invalid usage of given directive.");
+				loc.indexPath = directive_args[0];
 		}
 		else if (directive_name == "autoindex")
 		{
