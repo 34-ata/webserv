@@ -330,7 +330,7 @@ void WebServer::Run()
 {
 	signal(SIGINT, signalHandler);
 	signal(SIGTERM, signalHandler);
-	signal(SIGPIPE, SIG_IGN); // Ignore broken pipe signals - we handle disconnections manually
+	signal(SIGPIPE, SIG_IGN);
 	
 	while (!g_shutdown)
 	{
