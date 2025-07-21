@@ -52,25 +52,16 @@ struct ServerConfig
 
 struct ConnectionState
 {
+	ConnectionState();
     Request* req;
     std::string cache;
     std::string response;
     size_t responseOffset;
     time_t timeStamp;
     int listenerFd;
-    
-    ConnectionState() 
-        : req(NULL)
-        , cache("")
-        , response("")
-        , responseOffset(0)
-        , timeStamp(0)
-        , listenerFd(-1)
-    {
-    }
+
 };
 
-	Server();
 	Server(const ServerConfig& config);
 	~Server();
 
