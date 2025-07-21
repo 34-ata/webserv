@@ -41,7 +41,7 @@ echo -e "${CYAN}╔════════════════════�
 echo -e "${CYAN}║            WebServ Comprehensive Test Suite                  ║${NC}"
 echo -e "${CYAN}╚══════════════════════════════════════════════════════════════╝${NC}"
 
-cd /home/fata/webserv
+cd /home/faata/sgoinfre/webserv
 
 # Cleanup
 log_info "Cleaning up..."

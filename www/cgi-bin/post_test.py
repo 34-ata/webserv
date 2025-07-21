@@ -3,7 +3,6 @@ import sys
 import os
 import cgi
 
-# Read POST data
 content_length = int(os.environ.get('CONTENT_LENGTH', 0))
 if content_length > 0:
     post_data = sys.stdin.read(content_length)
@@ -52,7 +51,6 @@ print(f"""
         <h2>🔍 Parsed Form Data</h2>
 """)
 
-# Try to parse form data
 try:
     form = cgi.FieldStorage()
     if form.list:
