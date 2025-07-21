@@ -10,7 +10,6 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <ctime>
 #include <fcntl.h>
 #include <fstream>
 #include <iostream>
@@ -225,7 +224,7 @@ bool Server::connectIfNotConnected(int fd)
                 
                 ConnectionState& state = m_connections[clientFd];
                 state.listenerFd = fd;
-        		state.timeStamp = time(NULL);
+        		state.timeStamp = std::time(NULL);
             }
             return true;
         }
@@ -244,7 +243,7 @@ bool Server::fillCache(int fd)
         buffer[bytes] = 0;
         state.cache.clear();
         state.cache.append(buffer, bytes);
-        state.timeStamp = time(NULL);
+        state.timeStamp = std::time(NULL);
         return false;
     }
 	else if (bytes == 0)
@@ -335,7 +334,7 @@ void Server::handleReadEvent(int fd)
         if (state.req == NULL)
         {
             state.req = new Request();
-            state.timeStamp = time(NULL);
+            state.timeStamp = std::time(NULL);
         }
 
         std::stringstream ss(state.cache);
@@ -983,3 +982,5 @@ Server::Location::Location(const Server::ServerConfig& config)
 	autoIndex	  = false;
 	hasRedirect	  = false;
 }
+
+Server::ConnectionState::ConnectionState() : req(NULL), cache(""), response(""), responseOffset(0), timeStamp(0), listenerFd(-1) {}
