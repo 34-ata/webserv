@@ -537,6 +537,7 @@ void Server::handleDirectory(int fd, const Location& loc, std::string uri, std::
     if (!loc.indexPath.empty())
     {
         std::string indexFilePath = joinPaths(filePath, loc.indexPath);
+        std::string rootIndexPath = "." + joinPaths(loc.serverRoot, loc.indexPath);
         if (access(indexFilePath.c_str(), F_OK) == 0)
         {
             if (access(indexFilePath.c_str(), R_OK) == 0)
@@ -547,6 +548,31 @@ void Server::handleDirectory(int fd, const Location& loc, std::string uri, std::
                         .header("Content-Type", getContentType(indexFilePath))
                         .header("Connection", req->shouldClose() ? "close" : "keep-alive")
                         .body(getFileContent(indexFilePath))
+                        .build();
+                return;
+            }
+            else
+            {
+                std::string errorBody = getErrorPageContent(FORBIDDEN);
+                m_response = response.status(FORBIDDEN)
+                             .httpVersion(HTTP_VERSION)
+                             .header("Content-Type", "text/html")
+                             .header("Connection", req->shouldClose() ? "close" : "keep-alive")
+                             .body(errorBody)
+                             .build();
+                return;
+            }
+        }
+        else if (access(rootIndexPath.c_str(), F_OK) == 0)
+        {
+            if (access(rootIndexPath.c_str(), R_OK) == 0)
+            {
+                m_response =
+                    response.status(OK)
+                        .httpVersion(HTTP_VERSION)
+                        .header("Content-Type", getContentType(rootIndexPath))
+                        .header("Connection", req->shouldClose() ? "close" : "keep-alive")
+                        .body(getFileContent(rootIndexPath))
                         .build();
                 return;
             }
@@ -948,11 +974,12 @@ std::map<int, Server::ConnectionState>& Server::getConnections()
 
 std::vector< struct pollfd >& Server::getPollFds() { return pollFds; }
 
-Server::Location::Location()
+Server::Location::Location(const Server::ServerConfig& config)
 {
 	locUrl		  = "/";
-	rootPath	  = "";
-	indexPath	  = "index.html";
+	rootPath	  = config.rootPath;
+	indexPath	  = config.indexPath;
+    serverRoot    = config.rootPath;
 	autoIndex	  = false;
 	hasRedirect	  = false;
 }

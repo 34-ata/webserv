@@ -14,11 +14,14 @@ class Response;
 class Server
 {
   public:
+	struct ServerConfig;
+  public:
 	struct Location
 	{
-		Location();
+		Location(const ServerConfig& config);
 		std::string locUrl;
 		std::string rootPath;
+		std::string serverRoot;
 		std::string indexPath;
 		bool autoIndex;
 		std::vector< HttpMethods > allowedMethods;
