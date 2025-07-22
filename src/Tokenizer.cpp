@@ -1,16 +1,11 @@
 #include "Tokenizer.hpp"
 #include "SyntaxException.hpp"
 #include <cctype>
-#include <cstddef>
 #include <cstdio>
-#include <exception>
-#include <fstream>
 #include <iostream>
 #include <istream>
 #include <list>
-#include <sstream>
 #include <string>
-#include <vector>
 
 void print_indent(int count, int size)
 {
@@ -22,7 +17,7 @@ void Tokenizer::PrintTokens() const
 {
 	int indent_level = 0;
 
-	for (std::list<std::string>::const_iterator i = m_tokens.begin();
+	for (std::list< std::string >::const_iterator i = m_tokens.begin();
 		 i != m_tokens.end(); i++)
 	{
 		if (*i == "{")
@@ -93,4 +88,7 @@ void Tokenizer::SkipWhiteSpaces()
 
 void Tokenizer::GetChar() { m_char = m_input.get(); }
 
-const std::list<std::string>& Tokenizer::GetTokens() const { return m_tokens; }
+const std::list< std::string >& Tokenizer::GetTokens() const
+{
+	return m_tokens;
+}

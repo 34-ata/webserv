@@ -1,7 +1,6 @@
 #include "Response.hpp"
 #include "ResponseCodes.hpp"
 #include <fcntl.h>
-#include <fstream>
 #include <iostream>
 #include <map>
 #include <sstream>

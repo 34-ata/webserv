@@ -15,7 +15,6 @@
 #include <map>
 #include <netinet/in.h>
 #include <signal.h>
-#include <sstream>
 #include <string>
 #include <sys/socket.h>
 #include <utility>
@@ -52,7 +51,7 @@ WebServer::~WebServer()
 	{
 		for (size_t i = 0; i < m_servers.size(); ++i)
 			delete m_servers[i];
-		
+
 		for (size_t i = 0; i < m_root.childs.size(); ++i)
 			deleteConfigBlock(m_root.childs[i]);
 	}
@@ -75,7 +74,8 @@ bool isErrorCode(std::string code)
 	return false;
 }
 
-Server::Location WebServer::createLocation(const ConfigBlock& location, const Server::ServerConfig& config)
+Server::Location WebServer::createLocation(const ConfigBlock& location,
+										   const Server::ServerConfig& config)
 {
 	Server::Location loc(config);
 	if (location.name == "location" && !location.args.empty())
@@ -106,9 +106,9 @@ Server::Location WebServer::createLocation(const ConfigBlock& location, const Se
 		else if (directive_name == "index")
 		{
 			if (directive_args.size() != 1)
-			throw SyntaxException(location, directives[i],
-				"Invalid usage of given directive.");
-				loc.indexPath = directive_args[0];
+				throw SyntaxException(location, directives[i],
+									  "Invalid usage of given directive.");
+			loc.indexPath = directive_args[0];
 		}
 		else if (directive_name == "autoindex")
 		{
@@ -158,7 +158,7 @@ Server::Location WebServer::createLocation(const ConfigBlock& location, const Se
 				throw SyntaxException(
 					location, directives[i],
 					"Invalid usage of upload_store directive.");
-			loc.uploadPath	  = directive_args[0];
+			loc.uploadPath = directive_args[0];
 		}
 	}
 	if (loc.allowedMethods.size() == 0)
@@ -175,8 +175,7 @@ Server::ServerConfig WebServer::createServerConfig(const ConfigBlock& server)
 		std::string directive_name				  = directives[i].directiveName;
 		std::vector< std::string > directive_args = directives[i].args;
 		if (directive_name == "server_name")
-			config.serverName =
-				directive_args[0];
+			config.serverName = directive_args[0];
 		else if (directive_name == "error_page")
 		{
 			if (directive_args.size() != 2)
@@ -291,7 +290,7 @@ std::string WebServer::parseHostHeader(int fd)
 		return "";
 
 	std::string host = data.substr(start, end - start);
-	size_t colon = host.find(":");
+	size_t colon	 = host.find(":");
 	if (colon != std::string::npos)
 		host = host.substr(0, colon);
 
@@ -305,10 +304,13 @@ void WebServer::checkTimeouts()
 	for (size_t i = 0; i < m_servers.size(); ++i)
 	{
 		Server* server = m_servers[i];
-		std::map<int, Server::ConnectionState>& conns = server->getConnections();
-		std::vector<int> toClose;
+		std::map< int, Server::ConnectionState >& conns =
+			server->getConnections();
+		std::vector< int > toClose;
 
-		for (std::map<int, Server::ConnectionState>::iterator it = conns.begin(); it != conns.end(); ++it)
+		for (std::map< int, Server::ConnectionState >::iterator it =
+				 conns.begin();
+			 it != conns.end(); ++it)
 		{
 			if (difftime(now, it->second.timeStamp) > TIMEOUT)
 				toClose.push_back(it->first);
@@ -330,14 +332,14 @@ void WebServer::Run()
 	signal(SIGINT, signalHandler);
 	signal(SIGTERM, signalHandler);
 	signal(SIGPIPE, SIG_IGN);
-	
+
 	while (!g_shutdown)
 	{
-		std::vector<struct pollfd> fds;
+		std::vector< struct pollfd > fds;
 
 		for (size_t i = 0; i < m_servers.size(); ++i)
 		{
-			const std::vector<struct pollfd>& serverFds =
+			const std::vector< struct pollfd >& serverFds =
 				m_servers[i]->getPollFds();
 			fds.insert(fds.end(), serverFds.begin(), serverFds.end());
 		}
@@ -365,9 +367,9 @@ void WebServer::Run()
 				continue;
 			}
 
-			int port = ntohs(addr.sin_port);
+			int port		 = ntohs(addr.sin_port);
 			std::string host = parseHostHeader(fds[i].fd);
-			Server* matched = findMatchingServer(ip, port, m_servers, host);
+			Server* matched	 = findMatchingServer(ip, port, m_servers, host);
 			if (!matched)
 				continue;
 
@@ -393,7 +395,7 @@ void WebServer::Shutdown()
 		}
 	}
 	m_servers.clear();
-	
+
 	for (size_t i = 0; i < m_root.childs.size(); ++i)
 		deleteConfigBlock(m_root.childs[i]);
 	m_root.childs.clear();

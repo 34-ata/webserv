@@ -3,10 +3,9 @@
 
 #include "Tokenizer.hpp"
 #include <exception>
-#include <iostream>
 #include <string>
 
-#define UNEXPECTED(strGet, strExpect)                                                \
+#define UNEXPECTED(strGet, strExpect)                                          \
 	"Unexpected Token [" + strGet + "] expect [" + strExpect + "]"
 
 class SyntaxException : public std::exception

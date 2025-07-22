@@ -10,5 +10,7 @@ enum HttpMethods
 	POST,
 	DELETE,
 };
+
 HttpMethods strToMethod(const std::string& str);
+
 #endif

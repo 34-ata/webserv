@@ -14,9 +14,9 @@ class Request
 	Request& operator=(const Request&);
 	~Request();
 
+  public:
 	void fillRequest(const std::string& buffer);
 	void checkIntegrity();
-
 	HttpMethods getMethod() const;
 	std::string getPath() const;
 	std::string getContentType() const;

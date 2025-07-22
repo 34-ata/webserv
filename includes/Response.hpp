@@ -18,8 +18,10 @@ class Response
 	Response& httpVersion(std::string httpVersion);
 	Response& header(std::string key, std::string value);
 	Response& body(std::string body);
-	static std::string mapCodeToStr(ResponseCodes code);
 	std::string build();
+
+  public:
+	static std::string mapCodeToStr(ResponseCodes code);
 
   private:
 	ResponseCodes m_status;

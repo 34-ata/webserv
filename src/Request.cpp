@@ -1,10 +1,7 @@
 #include "Request.hpp"
-#include "Log.hpp"
 #include <cstddef>
 #include <cstdio>
 #include <cstdlib>
-#include <functional>
-#include <iostream>
 #include <map>
 #include <sstream>
 #include <string>
@@ -17,8 +14,10 @@ std::string Request::getVersion() const { return m_httpVersion; }
 
 const std::string& Request::getData() const { return m_data; }
 
-std::string Request::getContentType() const {
-	std::map<std::string, std::string>::const_iterator it = m_headers.find("Content-Type");
+std::string Request::getContentType() const
+{
+	std::map< std::string, std::string >::const_iterator it =
+		m_headers.find("Content-Type");
 	if (it != m_headers.end())
 		return it->second;
 	return "text/plain";
@@ -44,15 +43,9 @@ bool Request::getBadRequest() const { return this->m_badRequest; }
 
 void Request::setBadRequest() { this->m_badRequest = true; }
 
-time_t Request::getTimeStamp() const
-{
-	return m_timestamp;
-}
+time_t Request::getTimeStamp() const { return m_timestamp; }
 
-void Request::setTimeStamp(time_t t)
-{
-	m_timestamp = t;
-}
+void Request::setTimeStamp(time_t t) { m_timestamp = t; }
 
 void Request::fillRequest(const std::string& buffer) { m_data.append(buffer); }
 
@@ -121,7 +114,7 @@ void Request::checkHeaders(std::stringstream& dataStream)
 			m_badRequest = true;
 			return;
 		}
-		value = line.substr(halfPos + 2, line.size() - halfPos - 3);
+		value		   = line.substr(halfPos + 2, line.size() - halfPos - 3);
 		m_headers[key] = value;
 	}
 }
@@ -132,7 +125,8 @@ void Request::checkIntegrity()
 	requestLineIntegrity(dataStream);
 	checkHeaders(dataStream);
 
-	std::map<std::string, std::string>::iterator it = m_headers.find("Connection");
+	std::map< std::string, std::string >::iterator it =
+		m_headers.find("Connection");
 	std::string conn = (it != m_headers.end()) ? it->second : "";
 
 	m_shouldClose = (conn == "close");
@@ -149,7 +143,7 @@ Request& Request::operator=(const Request& other)
 Request::Request()
 {
 	m_badRequest = false;
-	m_timestamp = time(NULL);
+	m_timestamp	 = time(NULL);
 }
 
 Request::~Request() {}

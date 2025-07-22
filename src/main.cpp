@@ -1,5 +1,4 @@
 #include "WebServer.hpp"
-#include <cstdlib>
 #include <iostream>
 
 int main(int argc, char** argv)
@@ -18,7 +17,6 @@ int main(int argc, char** argv)
 	}
 
 	webserv.Run();
-
 	webserv.Shutdown();
 	return 0;
 }
